@@ -5,66 +5,57 @@
 
 {% block content %}
 <header class="page-head">
-  <div>
+  <div class="page-head-text">
     <h1>Settings</h1>
-    <p class="page-sub">API keys are stored locally in <code>.env</code>. They never leave your machine.</p>
+    <p class="page-sub">API keys for video generation. Stored in <code>.env</code>. Restart <code>run.sh</code> after editing values written by hand.</p>
   </div>
 </header>
 
-<div class="card">
-  <h2 class="section-title">API keys</h2>
-  <div class="keys-list">
-    {% for k in keys %}
-      <div class="key-row">
-        <div class="key-service">
-          <span class="key-service-name">{{ k.service }}</span>
-          <span class="key-service-var">{{ k.env_var }}</span>
-        </div>
-
-        <div class="key-status-block">
-          {% if k.is_set %}
-            <div class="key-status-line set">
-              <span class="status-dot status-ok"></span>
-              <span>Set</span>
-            </div>
-            <div class="key-masked">{{ k.masked }}</div>
-          {% else %}
-            <div class="key-status-line missing">
-              <span class="status-dot status-failed"></span>
-              <span>Not configured</span>
-            </div>
-          {% endif %}
-        </div>
-
-        <div class="key-form">
-          <form action="{{ url_for('settings_save', env_var=k.env_var) }}" method="post">
-            <div class="key-form-row">
-              <input type="password" name="value" placeholder="{{ k.placeholder }}" autocomplete="off" required>
-              <button type="submit" class="btn btn-primary btn-small">
-                {% if k.is_set %}Update{% else %}Save{% endif %}
-              </button>
-            </div>
-          </form>
-          {% if k.is_set %}
-            <form action="{{ url_for('settings_delete', env_var=k.env_var) }}" method="post"
-                  onsubmit="return confirm('Delete {{ k.env_var }}?');">
-              <button type="submit" class="btn btn-danger btn-delete">
-                {{ icons.icon('trash', size=11) }} Remove key
-              </button>
-            </form>
-          {% endif %}
-        </div>
-      </div>
-    {% endfor %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>API keys</h2>
+    <span class="text-3 small">{{ keys|length }} configured</span>
   </div>
-</div>
+  <div class="panel-body">
+    <div class="keys-list">
+      {% for k in keys %}
+        <div class="key-row">
+          <div class="key-name">
+            <span>{{ k.env_var }}</span>
+            <span class="key-name-desc">{{ k.service }}</span>
+          </div>
+          <div>
+            {% if k.is_set %}
+              <span class="key-value">{{ k.masked }}</span>
+            {% else %}
+              <span class="text-3 small">Not configured</span>
+            {% endif %}
+          </div>
+          <form method="post" action="{{ url_for('settings_save', env_var=k.env_var) }}" class="key-form" style="justify-content: flex-end;">
+            <input type="password" name="value" placeholder="{% if k.is_set %}Replace…{% else %}{{ k.placeholder }}{% endif %}" autocomplete="off">
+            <button type="submit" class="btn btn-ghost btn-sm">Save</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
 
-<aside class="notes-block">
-  <h3>Notes</h3>
-  <ul>
-    <li><strong>fal.ai</strong> — used by H3 Max and Kling models. Get a key at <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener">fal.ai/dashboard/keys</a>. {{ icons.icon('external', size=11) }}</li>
-    <li><strong>MiniMax (H3 cloud)</strong> — direct access to the H3 API. Optional.</li>
-    <li><strong>Telegram bot</strong> — optional, only needed if you wire up the Telegram notifier later.</li>
-  </ul>
-</aside>
+<section class="panel">
+  <div class="panel-head"><h2>Environment</h2></div>
+  <div class="panel-body">
+    <div class="field">
+      <label>Project root</label>
+      <code class="mono">{{ project_root }}</code>
+    </div>
+    <div class="field">
+      <label>Storage</label>
+      <ul style="margin: 0; padding-left: 18px; color: var(--text-2); font-size: var(--t-13);">
+        <li><code class="mono">references/uploads/</code> — uploaded references</li>
+        <li><code class="mono">outputs/&lt;timestamp&gt;/</code> — generated videos</li>
+        <li><code class="mono">.calypso/calypso.db</code> — brand, drafts, tags, job links</li>
+      </ul>
+    </div>
+  </div>
+</section>
 {% endblock %}

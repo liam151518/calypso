@@ -52,6 +52,12 @@ class Job:
     error_trace: str | None = None
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
+    batch_id: str | None = None
+    references: list[str] = field(default_factory=list)
+    effective_prompt: str | None = None
+    ref_ids: list[str] = field(default_factory=list)
+    draft_id: int | None = None
+    brand_id: int | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def touch(self) -> None:
@@ -73,6 +79,12 @@ class Job:
             "error": self.error,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "batch_id": self.batch_id,
+            "references": list(self.references),
+            "effective_prompt": self.effective_prompt,
+            "ref_ids": list(self.ref_ids),
+            "draft_id": self.draft_id,
+            "brand_id": self.brand_id,
         }
 
 
@@ -93,6 +105,12 @@ def create_job(
     reference: str | None = None,
     duration: int = 8,
     resolution: str = "768p",
+    batch_id: str | None = None,
+    references: list[str] | None = None,
+    effective_prompt: str | None = None,
+    ref_ids: list[str] | None = None,
+    draft_id: int | None = None,
+    brand_id: int | None = None,
 ) -> Job:
     """Create and store a new Job in the 'queued' state."""
     job = Job(
@@ -102,10 +120,85 @@ def create_job(
         reference=reference,
         duration=duration,
         resolution=resolution,
+        batch_id=batch_id,
+        references=list(references or []),
+        effective_prompt=effective_prompt,
+        ref_ids=list(ref_ids or []),
+        draft_id=draft_id,
+        brand_id=brand_id,
     )
     with _JOBS_LOCK:
         _JOBS[job.job_id] = job
     return job
+
+
+def make_batch_id() -> str:
+    return "b-" + time.strftime("%Y%m%d-%H%M%S-") + f"{time.time_ns() % 1_000_000:06d}"
+
+
+def create_batch(
+    prompt: str,
+    *,
+    refs: list[tuple[str, str | None]],
+    model: str = "auto",
+    duration: int = 8,
+    resolution: str = "768p",
+    effective_prompt: str | None = None,
+    draft_id: int | None = None,
+    brand_id: int | None = None,
+) -> tuple[str, list[Job]]:
+    """Create a batch of jobs from a list of (ref_id, ref_path) tuples.
+
+    Returns the batch_id and the list of created Jobs (NOT yet started —
+    the caller decides when to spawn threads).
+    """
+    batch_id = make_batch_id()
+    jobs: list[Job] = []
+    for ref_id, ref_path in refs:
+        job = create_job(
+            prompt,
+            model=model,
+            reference=ref_path,
+            duration=duration,
+            resolution=resolution,
+            batch_id=batch_id,
+            references=[ref_path] if ref_path else [],
+            effective_prompt=effective_prompt,
+            ref_ids=[ref_id] if ref_id else [],
+            draft_id=draft_id,
+            brand_id=brand_id,
+        )
+        jobs.append(job)
+    return batch_id, jobs
+
+
+def list_jobs_for_batch(batch_id: str) -> list[Job]:
+    """Return all jobs in a batch, in creation order."""
+    with _JOBS_LOCK:
+        jobs = [j for j in _JOBS.values() if j.batch_id == batch_id]
+    jobs.sort(key=lambda j: j.created_at)
+    return jobs
+
+
+def get_batch_summary(batch_id: str) -> dict | None:
+    """Aggregate counts and overall status for a batch."""
+    children = list_jobs_for_batch(batch_id)
+    if not children:
+        return None
+    statuses = [j.status for j in children]
+    overall = "succeeded" if all(s == "succeeded" for s in statuses) else (
+        "failed" if all(s in ("succeeded", "failed") for s in statuses) else "running"
+    )
+    succeeded = sum(1 for s in statuses if s == "succeeded")
+    failed = sum(1 for s in statuses if s == "failed")
+    return {
+        "batch_id": batch_id,
+        "overall": overall,
+        "total": len(children),
+        "succeeded": succeeded,
+        "failed": failed,
+        "running": len(children) - succeeded - failed,
+    }
 
 
 def get_job(job_id: str) -> Job | None:

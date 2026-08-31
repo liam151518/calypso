@@ -1,0 +1,64 @@
+{# Draft library picker on the Generate page. #}
+{# Expects: drafts (list of dicts), categories (list of dicts) #}
+
+<div class="draft-picker" id="draft-picker">
+  <input
+    type="search"
+    class="draft-picker-search"
+    placeholder="Search drafts…"
+    aria-label="Search drafts"
+    hx-get="{{ url_for('drafts_api') }}"
+    hx-trigger="input changed delay:200ms, keyup[key=='Enter']"
+    hx-target="#draft-picker-results"
+    hx-swap="innerHTML"
+    name="draft_query"
+  >
+  <select
+    class="draft-picker-select"
+    hx-get="{{ url_for('drafts_api') }}"
+    hx-trigger="change"
+    hx-target="#draft-picker-results"
+    hx-swap="innerHTML"
+    name="draft_category"
+  >
+    <option value="">All categories</option>
+    {% for c in categories %}
+      <option value="{{ c.category }}">{{ c.category }} ({{ c.count }})</option>
+    {% endfor %}
+  </select>
+  <label class="draft-fav-toggle">
+    <input type="checkbox"
+      hx-get="{{ url_for('drafts_api') }}"
+      hx-trigger="change"
+      hx-target="#draft-picker-results"
+      hx-swap="innerHTML"
+      name="favorites_only"
+    >
+    <span>Favorites only</span>
+  </label>
+
+  <div class="draft-list" id="draft-picker-results">
+    {% include "_partials/draft_results.html" %}
+  </div>
+</div>
+
+<script>
+  window.loadDraft = function (id, name, body) {
+    const ta = document.getElementById('prompt-textarea');
+    if (ta) {
+      ta.value = body;
+      ta.focus();
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const idField = document.getElementById('draft_id-field');
+    if (idField) idField.value = id;
+    const nameLabel = document.getElementById('draft-loaded-name');
+    if (nameLabel) nameLabel.textContent = '· ' + name;
+  };
+  window.clearDraft = function () {
+    const idField = document.getElementById('draft_id-field');
+    if (idField) idField.value = '';
+    const nameLabel = document.getElementById('draft-loaded-name');
+    if (nameLabel) nameLabel.textContent = '';
+  };
+</script>

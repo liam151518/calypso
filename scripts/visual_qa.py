@@ -24,6 +24,7 @@ PAGES = [
     ("generate", "http://127.0.0.1:8765/generate"),
     ("outputs", "http://127.0.0.1:8765/outputs"),
     ("references", "http://127.0.0.1:8765/references"),
+    ("brand", "http://127.0.0.1:8765/brand"),
     ("settings", "http://127.0.0.1:8765/settings"),
 ]
 
@@ -73,6 +74,11 @@ async def main() -> None:
                 "ffff0101010000000000000000ff000000"
             ))
         await page.set_input_files('input[type="file"]', str(ref_path))
+        # Add a tag so the tag editor on the card has visible content.
+        try:
+            await page.fill('input[name="tags"]', "character, hero")
+        except Exception:
+            pass
         await page.click('button[type="submit"]:has-text("Upload")')
         await page.wait_for_load_state("networkidle")
         # Wait for the image to actually render
@@ -91,6 +97,29 @@ async def main() -> None:
         await page.goto("http://127.0.0.1:8765/settings", wait_until="networkidle")
         await page.screenshot(path=str(OUT / "settings_with_data.png"), full_page=True)
         print("  saved settings_with_data.png")
+
+        # Seed a brand profile + a few drafts so the Generate page has rich state.
+        from app import brand as brand_mod
+        from app import drafts as drafts_mod
+        b = brand_mod.save_brand(
+            "Gachakingdoms",
+            tagline="Pull the blade. Rule the realm.",
+            audience="Collectors of mythic gacha characters",
+            palette=["#ff6a1f", "#0a0a0c", "#f6efe6", "#1f2a44"],
+            voice="cinematic, intimate, archival",
+            do_examples="tight close-ups\nwarm light\n35mm grain",
+            dont_examples="bright saturated backgrounds\nstock typography",
+            style_guide="Hero always off-axis. Never break the 4th wall.",
+        )
+        brand_mod.set_active_brand(b["id"])
+        drafts_mod.save_draft("Damascus reveal", "Damascus cabinet reveal, cinematic, golden hour, slow dolly.", category="hero")
+        drafts_mod.save_draft("Forge hands", "Close-up on hands shaping a blade. Sparks. Charcoal light.", category="craft")
+        drafts_mod.save_draft("Pull quote", "On-screen text fades up over product beauty shot.", category="cta", is_favorite=True)
+
+        # Brand page populated
+        await page.goto("http://127.0.0.1:8765/brand", wait_until="networkidle")
+        await page.screenshot(path=str(OUT / "brand_with_data.png"), full_page=True)
+        print("  saved brand_with_data.png")
 
         # Generate page with ref dropdown populated
         await page.goto("http://127.0.0.1:8765/generate", wait_until="networkidle")

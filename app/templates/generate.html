@@ -5,18 +5,22 @@
 
 {% block content %}
 <header class="page-head">
-  <div>
-    <h1>Make a video</h1>
-    <p class="page-sub">Type a prompt, pick a reference, hit Generate. The video lands in <code>outputs/&lt;timestamp&gt;/video.mp4</code>.</p>
+  <div class="page-head-text">
+    <h1>Generate</h1>
+    <p class="page-sub">Pick references, write a prompt (or load a draft), dispatch a job. The active brand is auto-prepended to every submission.</p>
+  </div>
+  <div class="page-head-actions">
   </div>
 </header>
 
 {% if not keys|selectattr('is_set')|list %}
 <div class="banner">
-  {{ icons.icon('warn', size=18, attrs='class="banner-icon"') }}
+  {{ icons.icon('warn', size=14, attrs='class="banner-icon"') }}
   <span>No API keys configured. Add at least one in <a href="{{ url_for('settings_page') }}">Settings</a> before generating.</span>
 </div>
 {% endif %}
+
+{% include "_partials/brand_card.html" %}
 
 <form id="generate-form"
       hx-post="{{ url_for('generate_submit') }}"
@@ -25,59 +29,84 @@
       hx-on::after-request="if(event.detail.xhr.status === 400) { showGenerateError(JSON.parse(event.detail.xhr.responseText).error); document.getElementById('job-region').innerHTML = ''; }"
       hx-disabled-elt=".btn-primary">
 
-  <div class="card">
-    <div class="field">
-      <label for="prompt">Prompt</label>
-      <textarea id="prompt" name="prompt" rows="3" required
-                placeholder="e.g. damascus cabinet reveal, cinematic, golden hour, slow dolly"></textarea>
-    </div>
+  <div class="panel">
+    <div class="panel-body is-flush">
+      <div class="generate-grid">
+        <div class="prompt-composer">
+          <div class="field" style="margin-bottom: 0;">
+            <label for="prompt-textarea">
+              Prompt
+              <span class="muted" id="draft-loaded-name"></span>
+              <input type="hidden" name="draft_id" id="draft_id-field" value="">
+            </label>
+            <textarea
+              id="prompt-textarea"
+              name="prompt"
+              required
+              placeholder="e.g. damascus cabinet reveal, cinematic, golden hour, slow dolly"
+            ></textarea>
+          </div>
 
-    <div class="grid-2">
-      <div class="field">
-        <label for="model">Model</label>
-        <select id="model" name="model">
-          {% for m in VALID_MODELS %}
-            <option value="{{ m }}" {% if m == 'auto' %}selected{% endif %}>{{ m }}</option>
-          {% endfor %}
-        </select>
-        <div class="hint">auto · H3 cloud if MINIMAX key set, else H3 Max via fal.ai</div>
+          <div class="prompt-composer-row">
+            <div class="field" style="margin-bottom: 0;">
+              <label for="model">Model</label>
+              <select id="model" name="model">
+                {% for m in VALID_MODELS %}
+                  <option value="{{ m }}" {% if m == 'auto' %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field" style="margin-bottom: 0;">
+              <label for="duration">Duration</label>
+              <input type="number" id="duration" name="duration" min="1" max="60" value="8">
+            </div>
+            <div class="field" style="margin-bottom: 0;">
+              <label for="resolution">Resolution</label>
+              <select id="resolution" name="resolution">
+                {% for r in VALID_RESOLUTIONS %}
+                  <option value="{{ r }}" {% if r == '768p' %}selected{% endif %}>{{ r }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="prompt-meta-bar">
+            <div>
+              <span id="generate-status" class="mono"></span>
+            </div>
+            <div class="flex-grow"></div>
+            <button type="button" class="btn-link" onclick="saveCurrentAsDraft()">Save as draft</button>
+            <button type="button" class="btn-link is-accent" onclick="clearDraft()">Clear</button>
+            <button type="submit" class="btn btn-primary">
+              {{ icons.icon('lightning', size=14) }}
+              Generate
+            </button>
+          </div>
+        </div>
+
+        <aside class="generate-col-side">
+          <section class="panel" style="margin-bottom: 16px;">
+            <div class="panel-head">
+              <h2>References <span class="count">{{ references|length }}</span></h2>
+              <div class="panel-actions">
+                <a href="{{ url_for('references_page') }}" class="btn btn-ghost btn-sm">Manage</a>
+              </div>
+            </div>
+            <div class="panel-body is-flush">
+              {% include "_partials/ref_chip_picker.html" %}
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Drafts <span class="count">{{ drafts|length }}</span></h2>
+            </div>
+            <div class="panel-body is-flush">
+              {% include "_partials/draft_picker.html" %}
+            </div>
+          </section>
+        </aside>
       </div>
-
-      <div class="field">
-        <label for="duration">Duration</label>
-        <input type="number" id="duration" name="duration" min="1" max="60" value="8">
-        <div class="hint">seconds per clip</div>
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <div class="field">
-        <label for="resolution">Resolution</label>
-        <select id="resolution" name="resolution">
-          {% for r in VALID_RESOLUTIONS %}
-            <option value="{{ r }}" {% if r == '768p' %}selected{% endif %}>{{ r }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="reference">Reference</label>
-        <select id="reference" name="reference">
-          <option value="">— pick from Folder A automatically —</option>
-          {% for r in references %}
-            <option value="{{ r.id }}">{{ r.name }}</option>
-          {% endfor %}
-        </select>
-        <div class="hint">upload more on the <a href="{{ url_for('references_page') }}">References</a> page</div>
-      </div>
-    </div>
-
-    <div class="actions">
-      <button type="submit" class="btn btn-primary btn-hero">
-        {{ icons.icon('lightning', size=14) }}
-        Generate video
-      </button>
-      <span id="generate-status" class="hint"></span>
     </div>
   </div>
 </form>
@@ -85,27 +114,55 @@
 <div id="job-region" class="job-region"></div>
 
 {% if recent_jobs %}
-<section class="recent">
-  <h2>Recent jobs</h2>
-  <ul class="job-list">
-    {% for j in recent_jobs %}
-      <li>
-        <span class="status-dot status-{{ j.status }}"></span>
-        <span class="job-id-tag">{{ j.job_id }}</span>
-        <span class="job-prompt-text">{{ j.prompt[:60] }}{% if j.prompt|length > 60 %}…{% endif %}</span>
-        <span class="job-meta-text">{{ j.model }} · {{ j.duration }}s · {{ j.resolution }}</span>
-      </li>
-    {% endfor %}
-  </ul>
+<section class="panel">
+  <div class="panel-head">
+    <h2>Recent jobs <span class="count">{{ recent_jobs|length }}</span></h2>
+  </div>
+  <div class="panel-body is-flush">
+    <div class="recent-list">
+      {% for j in recent_jobs %}
+        <a href="{{ url_for('outputs_page') }}" class="recent-row" style="text-decoration: none; color: inherit;">
+          <span class="status-pill status-{{ j.status }}">
+            <span class="dot"></span>{{ j.status }}
+          </span>
+          <span class="recent-prompt">{{ j.prompt[:80] }}{% if j.prompt|length > 80 %}…{% endif %}</span>
+          <span class="recent-meta">{{ j.job_id }} · {{ j.model }} · {{ j.duration }}s · {{ j.resolution }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
 </section>
 {% endif %}
 
 <script>
   function showGenerateError(msg) {
     const status = document.getElementById('generate-status');
+    if (!status) return;
     status.textContent = msg;
     status.style.color = 'var(--err)';
     setTimeout(() => { status.style.color = ''; }, 4000);
+  }
+
+  function saveCurrentAsDraft() {
+    const ta = document.getElementById('prompt-textarea');
+    const body = (ta?.value || '').trim();
+    if (!body) {
+      showGenerateError('Write a prompt first.');
+      return;
+    }
+    const name = prompt('Draft name', body.split('\n')[0].slice(0, 60));
+    if (!name) return;
+    const category = prompt('Category (optional)', '') || '';
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("draft_save") }}';
+    form.innerHTML = `
+      <input name="name" value="${name.replace(/"/g, '&quot;')}">
+      <input name="body" value="${body.replace(/"/g, '&quot;')}">
+      <input name="category" value="${category.replace(/"/g, '&quot;')}">
+    `;
+    document.body.appendChild(form);
+    form.submit();
   }
 </script>
 {% endblock %}

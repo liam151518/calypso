@@ -1,0 +1,22 @@
+{# Disclosure content for the effective prompt of a finished job. #}
+{# Rendered INSIDE the <details> on outputs.html. #}
+{# Expects: job_id, prompt, brand_name, draft_name, refs (list) #}
+
+<div class="prompt-disclosure-body">
+  {% if brand_name or draft_name or refs %}
+    <div class="prompt-meta">
+      {% if brand_name %}<span class="meta-chip">Brand: {{ brand_name }}</span>{% endif %}
+      {% if draft_name %}<span class="meta-chip">Draft: {{ draft_name }}</span>{% endif %}
+      {% for r in refs %}
+        <span class="meta-chip">
+          {% if r.rel_url %}<img class="meta-chip-thumb" src="{{ r.rel_url }}" alt="">{% endif %}
+          {{ r.name }}
+        </span>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <pre class="prompt-text">{{ prompt }}</pre>
+  <div class="prompt-actions">
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('generate_page') }}#{{ job_id }}">Re-derive in Generate</a>
+  </div>
+</div>

@@ -312,11 +312,38 @@ else
   fail "app/requirements.txt missing"
 fi
 
-for tpl in base.html generate.html references.html outputs.html settings.html job_status.html job_block.html 404.html _icons.html _health.html; do
+for tpl in base.html generate.html references.html outputs.html settings.html job_status.html job_block.html brand.html 404.html _icons.html _health.html; do
   if [[ -f "app/templates/$tpl" ]]; then pass "template: $tpl"
   else fail "missing template: app/templates/$tpl"
   fi
 done
+
+for partial in brand_card.html ref_chip_picker.html draft_picker.html draft_results.html batch_block.html batch_children.html job_card_mini.html prompt_disclosure.html ref_tag_editor.html; do
+  if [[ -f "app/templates/_partials/$partial" ]]; then pass "partial: $partial"
+  else fail "missing partial: app/templates/_partials/$partial"
+  fi
+done
+
+# SQLite-backed modules for the new generate-page experience.
+for mod in app/db.py app/refs.py app/drafts.py app/brand.py; do
+  if [[ -f "$mod" ]]; then pass "module: $mod"
+  else fail "missing module: $mod"
+  fi
+done
+
+# Ensure create_app() actually initialises the SQLite DB on boot.
+if command -v python3 >/dev/null 2>&1; then
+  if python3 -c "from app import server; a = server.create_app(); print('OK')" >/dev/null 2>&1; then
+    pass "create_app() initialises without errors"
+    if [[ -d .calypso ]] && [[ -f .calypso/calypso.db ]]; then
+      pass ".calypso/calypso.db created on startup"
+    else
+      info ".calypso/ not present yet (created on first run)"
+    fi
+  else
+    fail "create_app() raised — check import paths and SQL schema"
+  fi
+fi
 
 for asset in app.css htmx.min.js; do
   if [[ -f "app/static/$asset" ]]; then pass "static asset: $asset"
@@ -325,9 +352,9 @@ for asset in app.css htmx.min.js; do
 done
 
 # Fonts — production-grade design requires self-hosted type
-for font in playfair-display-500.ttf playfair-display-700.ttf inter-400.ttf inter-500.ttf inter-600.ttf jetbrains-mono-400.ttf jetbrains-mono-500.ttf; do
+for font in inter-400.ttf inter-500.ttf inter-600.ttf jetbrains-mono-400.ttf jetbrains-mono-500.ttf; do
   if [[ -f "app/static/fonts/$font" ]]; then pass "font: $font"
-  else fail "missing font: $font"
+  else fail "missing font: app/static/fonts/$font"
   fi
 done
 

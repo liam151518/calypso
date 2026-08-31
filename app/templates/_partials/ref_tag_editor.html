@@ -1,0 +1,30 @@
+{# Inline tag editor for a reference. #}
+{# Expects: ref (dict with id, tags[]) #}
+<form
+  class="ref-tag-editor"
+  hx-post="/references/{{ ref.id }}/tags"
+  hx-trigger="input changed delay:600ms from:input.ref-tag-input, submit"
+  hx-swap="none"
+>
+  <div class="ref-tag-pills">
+    {% for t in ref.tags %}
+      <span class="tag-pill is-static" data-tag="{{ t }}">
+        {{ t }}
+        <button
+          type="button"
+          class="x"
+          aria-label="Remove tag {{ t }}"
+          onclick="this.parentElement.remove(); this.closest('form').requestSubmit()"
+        >×</button>
+      </span>
+    {% endfor %}
+    <input
+      type="text"
+      name="tags"
+      class="ref-tag-input"
+      placeholder="{{ '+ tag' if not ref.tags else '+ add' }}"
+      autocomplete="off"
+      onkeydown="if(event.key==='Enter'){event.preventDefault(); this.form.requestSubmit();}"
+    >
+  </div>
+</form>

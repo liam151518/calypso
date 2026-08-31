@@ -1,34 +1,25 @@
 <!doctype html>
-<!--
-  THESIS: A producer's console for a single-operator ad pipeline — broadcast control room, editorial typography, signal-orange accent.
-  OWN-WORLD: ink ground + bone text + brass metadata + signal-orange action; serif display (Playfair) + Inter body + JetBrains Mono for technical.
-  STORY: Operator opens one of four panels — Generate (make a video), Outputs (review what was made), References (curate inputs), Settings (vault keys).
-  FIRST VIEWPORT: Sidebar (240px) holds brand mark + 4 nav links in mono caps + liveness. Main starts with page-head (large serif title, rule below), then content.
-  FORM: Operate. Single-user desktop app. Dark by use scene (operator's studio).
-  FINISH: this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.
--->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Calypso{% endblock %} · Calypso</title>
+  <title>{% block title %}Calypso{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   <script src="{{ url_for('static', filename='htmx.min.js') }}" defer></script>
 </head>
 <body>
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark">
-        {# Calypso mark — a stylized "C" with the signal-orange slash (collector / control) #}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 6a8 8 0 00-13.5 4"/>
-          <path d="M5 18a8 8 0 0013.5-4"/>
-          <path d="M12 2v3M12 19v3" stroke="var(--signal)" stroke-width="2"/>
+      <div class="brand-mark" aria-hidden="true">
+        {# Geometric mark: a square frame with a signal-orange diagonal slot — control surface, not a logo. #}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+          <rect x="3" y="3" width="18" height="18" rx="1"/>
+          <line x1="3" y1="21" x2="21" y2="3" stroke="var(--signal)" stroke-width="2"/>
         </svg>
       </div>
       <div class="brand-text">
         <div class="brand-name">Calypso</div>
-        <div class="brand-tag">Producer's console</div>
+        <div class="brand-tag">Operator</div>
       </div>
     </div>
 
@@ -43,9 +34,13 @@
         <span class="nav-icon">{{ icons.icon('film') }}</span>
         Outputs
       </a>
-      <a href="{{ url_for('references_page') }}" class="{% if request.endpoint == 'references_page' %}active{% endif %}">
+      <a href="{{ url_for('references_page') }}" class="{% if request.endpoint in ('references_page', 'references_set_tags') %}active{% endif %}">
         <span class="nav-icon">{{ icons.icon('image') }}</span>
         References
+      </a>
+      <a href="{{ url_for('brand_page') }}" class="{% if request.endpoint in ('brand_page', 'brand_save', 'brand_activate', 'brand_clear', 'brand_delete') %}active{% endif %}">
+        <span class="nav-icon">{{ icons.icon('spark') }}</span>
+        Brand
       </a>
       <a href="{{ url_for('settings_page') }}" class="{% if request.endpoint == 'settings_page' %}active{% endif %}">
         <span class="nav-icon">{{ icons.icon('key') }}</span>

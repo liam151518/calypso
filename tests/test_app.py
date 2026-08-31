@@ -24,10 +24,17 @@ from app.server import create_app
 
 @pytest.fixture
 def app(tmp_path: Path, monkeypatch):
-    """Create a fresh Flask app with an isolated .env and upload dir."""
+    """Create a fresh Flask app with an isolated .env, upload dir, and DB."""
     env_path = tmp_path / ".env"
     upload_dir = tmp_path / "references" / "uploads"
     upload_dir.mkdir(parents=True)
+
+    # Point the structured-data DB at a per-test file so we never inherit
+    # state from the on-disk `.calypso/calypso.db`.
+    from app import db as app_db
+    db_path = tmp_path / "calypso.db"
+    app_db.reset_for_tests(db_path)
+    monkeypatch.setattr(app_db, "DB_PATH", db_path)
 
     monkeypatch.setattr(settings, "ENV_PATH", env_path)
     monkeypatch.setattr(server, "REFERENCES_UPLOAD_DIR", upload_dir)
@@ -237,7 +244,7 @@ class TestReferences:
     def test_list_empty(self, client):
         resp = client.get("/references")
         assert resp.status_code == 200
-        assert b"No references yet" in resp.data or b"Library (0)" in resp.data
+        assert b"No references uploaded" in resp.data or b"No references yet" in resp.data
 
     def test_upload_then_list(self, client, tmp_path, monkeypatch):
         # Set up the upload dir via monkeypatch on server module
@@ -424,3 +431,344 @@ class TestSettingsModule:
         for k in keys:
             assert k.is_set is False
             assert k.masked is None
+
+
+# ---------- advanced generate: multi-ref, brand injection, drafts ----------
+
+class TestMultiRefSubmit:
+    def _seed_refs(self, upload_dir: Path, n: int = 2):
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        names = []
+        for i in range(n):
+            p = upload_dir / f"ref_{i}.png"
+            p.write_bytes(b"\x89PNG\r\n\x1a\n")
+            names.append(p.name)
+        return names
+
+    def _stub_generate(self, monkeypatch, captured):
+        from scripts import generate as gen_mod
+
+        def fake(prompt, *, reference=None, **kwargs):
+            captured.setdefault("calls", []).append(
+                {"prompt": prompt, "reference": reference}
+            )
+            class R:
+                output_path = Path("/tmp/fake.mp4")
+                model = "h3-max"
+                duration_seconds = 8
+                resolution = "768p"
+                cost_usd = 0.4
+                elapsed_seconds = 1.0
+                reference_used = reference
+                source_request_id = "x"
+            return R()
+
+        monkeypatch.setattr(gen_mod, "generate", fake)
+        monkeypatch.setattr(jobs, "run_generate", fake)
+
+    def test_multi_ref_creates_batch(self, client, env_with_fal, tmp_path, monkeypatch):
+        upload_dir = tmp_path / "uploads"
+        ids = self._seed_refs(upload_dir, n=3)
+        monkeypatch.setattr(server, "REFERENCES_UPLOAD_DIR", upload_dir)
+        captured = {}
+        self._stub_generate(monkeypatch, captured)
+
+        resp = client.post(
+            "/generate",
+            data={
+                "prompt": "three refs at once",
+                "model": "auto",
+                "ref_ids": ids,  # Flask test client expands lists
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.data.decode()
+        assert "batch-card" in body
+        assert "Batch" in body
+        # Three generate calls were made, one per ref
+        assert len(captured["calls"]) == 3
+
+    def test_single_ref_creates_one_job(self, client, env_with_fal, tmp_path, monkeypatch):
+        upload_dir = tmp_path / "uploads"
+        ids = self._seed_refs(upload_dir, n=1)
+        monkeypatch.setattr(server, "REFERENCES_UPLOAD_DIR", upload_dir)
+        captured = {}
+        self._stub_generate(monkeypatch, captured)
+
+        resp = client.post(
+            "/generate",
+            data={"prompt": "single", "ref_ids": ids},
+        )
+        assert resp.status_code == 200
+        body = resp.data.decode()
+        # Single-job path: not a batch card.
+        assert "batch-card" not in body
+        assert "job-card" in body
+        assert len(captured["calls"]) == 1
+
+    def test_multi_ref_silently_drops_invalid(
+        self, client, env_with_fal, tmp_path, monkeypatch
+    ):
+        upload_dir = tmp_path / "uploads"
+        ids = self._seed_refs(upload_dir, n=1)
+        monkeypatch.setattr(server, "REFERENCES_UPLOAD_DIR", upload_dir)
+        captured = {}
+        self._stub_generate(monkeypatch, captured)
+
+        # One good id, one traversal attempt — the bad id is kept in the batch
+        # as a (filename, None) tuple, creating a no-ref job alongside the good one.
+        resp = client.post(
+            "/generate",
+            data={"prompt": "with bad ref", "ref_ids": ids + ["../../etc/passwd"]},
+        )
+        assert resp.status_code == 200
+        assert len(captured["calls"]) == 2
+        # Good ref resolved to its absolute path.
+        good = [c for c in captured["calls"] if c["reference"] is not None]
+        assert len(good) == 1
+        # Bad ref resolved to None (no path-traversal escape).
+        bad = [c for c in captured["calls"] if c["reference"] is None]
+        assert len(bad) == 1
+
+
+class TestBrandInjection:
+    def test_brand_block_prepended_to_prompt(
+        self, client, env_with_fal, tmp_path, monkeypatch
+    ):
+        from app import brand as brand_mod
+        from app import db as app_db
+
+        # Reset DB to a temp file
+        db_path = tmp_path / "calypso.db"
+        app_db.reset_for_tests(db_path)
+        monkeypatch.setattr(app_db, "DB_PATH", db_path)
+
+        b = brand_mod.save_brand(
+            "Gachakingdoms",
+            tagline="Pull the blade",
+            audience="Collectors",
+            palette=["#ff6a1f", "#0a0a0c"],
+            voice="cinematic",
+        )
+        brand_mod.set_active_brand(b["id"])
+
+        captured = {}
+
+        def fake(prompt, *, reference=None, **kwargs):
+            captured["prompt"] = prompt
+            class R:
+                output_path = Path("/tmp/fake.mp4")
+                model = "h3-max"; duration_seconds = 8; resolution = "768p"
+                cost_usd = 0.4; elapsed_seconds = 1.0
+                reference_used = reference; source_request_id = "x"
+            return R()
+
+        from scripts import generate as gen_mod
+        monkeypatch.setattr(gen_mod, "generate", fake)
+        monkeypatch.setattr(jobs, "run_generate", fake)
+
+        resp = client.post("/generate", data={"prompt": "Hero draws blade"})
+        assert resp.status_code == 200
+        assert "[BRAND]" in captured["prompt"]
+        assert "Name: Gachakingdoms" in captured["prompt"]
+        assert "Hero draws blade" in captured["prompt"]
+
+    def test_explicit_brand_id_overrides_active(
+        self, client, env_with_fal, tmp_path, monkeypatch
+    ):
+        from app import brand as brand_mod
+        from app import db as app_db
+
+        db_path = tmp_path / "calypso.db"
+        app_db.reset_for_tests(db_path)
+        monkeypatch.setattr(app_db, "DB_PATH", db_path)
+
+        a = brand_mod.save_brand("ActiveBrand")
+        b = brand_mod.save_brand("ExplicitBrand")
+        brand_mod.set_active_brand(a["id"])
+
+        captured = {}
+
+        def fake(prompt, *, reference=None, **kwargs):
+            captured["prompt"] = prompt
+            class R:
+                output_path = Path("/tmp/fake.mp4")
+                model = "h3-max"; duration_seconds = 8; resolution = "768p"
+                cost_usd = 0.4; elapsed_seconds = 1.0
+                reference_used = reference; source_request_id = "x"
+            return R()
+
+        from scripts import generate as gen_mod
+        monkeypatch.setattr(gen_mod, "generate", fake)
+        monkeypatch.setattr(jobs, "run_generate", fake)
+
+        resp = client.post(
+            "/generate",
+            data={"prompt": "Hi", "brand_id": str(b["id"])},
+        )
+        assert resp.status_code == 200
+        assert "Name: ExplicitBrand" in captured["prompt"]
+        assert "Name: ActiveBrand" not in captured["prompt"]
+
+
+class TestDraftRoutes:
+    def test_save_then_drafts_api_round_trip(self, client, tmp_path, monkeypatch):
+        from app import db as app_db
+
+        db_path = tmp_path / "calypso.db"
+        app_db.reset_for_tests(db_path)
+        monkeypatch.setattr(app_db, "DB_PATH", db_path)
+
+        resp = client.post(
+            "/drafts/save",
+            data={"name": "Hero reveal", "body": "Close-up on a hero in firelight."},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 302
+
+        resp = client.get("/drafts/api?draft_query=hero")
+        assert resp.status_code == 200
+        body = resp.data.decode()
+        assert "Hero reveal" in body
+
+    def test_favorite_toggle(self, client, tmp_path, monkeypatch):
+        from app import db as app_db
+        from app import drafts
+
+        db_path = tmp_path / "calypso.db"
+        app_db.reset_for_tests(db_path)
+        monkeypatch.setattr(app_db, "DB_PATH", db_path)
+        d = drafts.save_draft("x", "y")
+
+        resp = client.post(f"/drafts/{d['id']}/favorite")
+        assert resp.status_code == 302
+        fetched = drafts.get_draft(d["id"])
+        assert fetched["is_favorite"] is True
+
+
+class TestRefsTagsRoute:
+    def test_set_tags_round_trip(self, client, tmp_path, monkeypatch):
+        from app import refs as refs_mod
+
+        upload_dir = tmp_path / "uploads"
+        (upload_dir).mkdir(parents=True)
+        (upload_dir / "img.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+        monkeypatch.setattr(server, "REFERENCES_UPLOAD_DIR", upload_dir)
+
+        resp = client.post(
+            "/references/img.png/tags",
+            data={"tags": "character, hero"},
+        )
+        assert resp.status_code == 200
+        body = resp.data.decode()
+        assert "character" in body
+        assert "hero" in body
+        assert refs_mod.get_tags("img.png") == ["character", "hero"]
+
+    def test_tag_set_returns_partial_for_htmx(self, client, tmp_path, monkeypatch):
+        from app import refs as refs_mod
+
+        upload_dir = tmp_path / "uploads"
+        upload_dir.mkdir(parents=True)
+        (upload_dir / "img.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+        monkeypatch.setattr(server, "REFERENCES_UPLOAD_DIR", upload_dir)
+
+        resp = client.post(
+            "/references/img.png/tags",
+            data={"tags": "background"},
+            headers={"HX-Request": "true"},
+        )
+        assert resp.status_code == 200
+        # Just the editor partial, not the whole page.
+        assert b"<html" not in resp.data
+
+
+class TestBrandPage:
+    def test_brand_page_renders(self, client):
+        resp = client.get("/brand")
+        assert resp.status_code == 200
+        assert b"Brand" in resp.data
+        assert b"New brand" in resp.data
+
+    def test_save_then_brand_visible(self, client, tmp_path, monkeypatch):
+        from app import db as app_db
+
+        db_path = tmp_path / "calypso.db"
+        app_db.reset_for_tests(db_path)
+        monkeypatch.setattr(app_db, "DB_PATH", db_path)
+
+        resp = client.post(
+            "/brand/save",
+            data={
+                "name": "TestBrand",
+                "tagline": "Hello world",
+                "palette": "#ff6a1f, #0a0a0c",
+                "set_active": "1",
+            },
+        )
+        assert resp.status_code == 302
+
+        resp = client.get("/brand")
+        assert resp.status_code == 200
+        body = resp.data.decode()
+        assert "TestBrand" in body
+        assert "Hello world" in body
+        assert "#ff6a1f" in body
+
+    def test_activate_and_clear(self, client, tmp_path, monkeypatch):
+        from app import brand as brand_mod
+        from app import db as app_db
+
+        db_path = tmp_path / "calypso.db"
+        app_db.reset_for_tests(db_path)
+        monkeypatch.setattr(app_db, "DB_PATH", db_path)
+        b = brand_mod.save_brand("ActiveTest")
+
+        resp = client.post(f"/brand/{b['id']}/activate")
+        assert resp.status_code == 302
+        assert brand_mod.get_active_brand()["id"] == b["id"]
+
+        resp = client.post("/brand/clear")
+        assert resp.status_code == 302
+        assert brand_mod.get_active_brand() is None
+
+
+class TestOutputsPromptDisclosure:
+    def test_outputs_renders_prompt_link(self, client, tmp_path, monkeypatch):
+        from app import db as app_db
+        out = tmp_path / "outputs" / "20260101-120000"
+        out.mkdir(parents=True)
+        (out / "video.mp4").write_bytes(b"x")
+        monkeypatch.setattr(jobs, "OUTPUTS_DIR", tmp_path / "outputs")
+
+        # Also create a job_link so the disclosure reveals.
+        app_db.reset_for_tests(tmp_path / "calypso.db")
+        monkeypatch.setattr(app_db, "DB_PATH", tmp_path / "calypso.db")
+        app_db.get_conn().execute(
+            "INSERT INTO job_links(job_id, prompt_body, ref_ids_json, created_at) VALUES (?, ?, ?, ?)",
+            ("20260101-120000", "Test prompt body", "[]", 0),
+        )
+
+        resp = client.get("/outputs")
+        assert resp.status_code == 200
+        assert b"View prompt" in resp.data
+
+    def test_outputs_prompt_partial_returns_prompt(self, client, tmp_path, monkeypatch):
+        from app import brand as brand_mod
+        from app import db as app_db
+
+        db_path = tmp_path / "calypso.db"
+        app_db.reset_for_tests(db_path)
+        monkeypatch.setattr(app_db, "DB_PATH", db_path)
+        b = brand_mod.save_brand("FooBrand")
+        conn = app_db.get_conn()
+        conn.execute(
+            "INSERT INTO job_links(job_id, prompt_body, brand_id, ref_ids_json, created_at) VALUES (?, ?, ?, ?, ?)",
+            ("20260101-120000", "[BRAND]\\nName: Foo\\n[/BRAND]\\n[PROMPT]\\nTest\\n[/PROMPT]", b["id"], "[]", 0),
+        )
+
+        resp = client.get("/outputs/20260101-120000/prompt")
+        assert resp.status_code == 200
+        body = resp.data.decode()
+        assert "Test" in body
+        assert "Brand: FooBrand" in body

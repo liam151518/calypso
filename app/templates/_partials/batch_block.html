@@ -1,0 +1,19 @@
+{# Batch container — header summary + child jobs poll on their own. #}
+{# Expects: batch_id, summary #}
+<section class="batch-card" id="batch-{{ batch_id }}">
+  <div class="batch-head">
+    <div class="batch-title">
+      <strong>Batch {{ batch_id }}</strong>
+      <span class="text-3">·</span>
+      <span class="text-2">{{ summary.succeeded }}/{{ summary.total }} done</span>
+      {% if summary.failed %}<span class="status-pill status-failed" style="margin-left: 6px;"><span class="dot"></span>{{ summary.failed }} failed</span>{% endif %}
+    </div>
+    <div class="batch-summary mono">
+      {{ summary.queued }} queued · {{ summary.running }} running
+    </div>
+  </div>
+
+  <div class="batch-children">
+    {% include "_partials/batch_children.html" %}
+  </div>
+</section>

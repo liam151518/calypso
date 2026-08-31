@@ -1,0 +1,39 @@
+{# Inner block of draft results, swappable via HTMX. #}
+{# Expects: drafts (list of dicts) #}
+{% if drafts %}
+  <ul class="draft-list-items">
+    {% for d in drafts %}
+      <li class="draft-item">
+        <button
+          type="button"
+          class="draft-item-button"
+          onclick="loadDraft({{ d.id|tojson }}, {{ d.name|tojson }}, {{ d.body|tojson }})"
+        >
+          <span class="draft-item-name">{{ d.name }}</span>
+          {% if d.category %}<span class="draft-item-category">{{ d.category }}</span>{% endif %}
+          <span class="draft-item-body">{{ d.body[:80] }}{% if d.body|length > 80 %}…{% endif %}</span>
+        </button>
+        <button
+          type="button"
+          class="draft-item-fav {% if d.is_favorite %}is-favorite{% endif %}"
+          aria-label="Toggle favorite"
+          hx-post="{{ url_for('draft_favorite', draft_id=d.id) }}"
+          hx-trigger="click"
+          hx-swap="none"
+        >
+          {{ '★' if d.is_favorite else '☆' }}
+        </button>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 4H5a1 1 0 00-1 1v14a1 1 0 001 1h14a1 1 0 001-1v-9M14 4l6 6M14 4v6h6"/>
+      </svg>
+    </div>
+    <div class="empty-title">No drafts yet</div>
+    <div class="empty-sub">Write a prompt and click <strong>Save as draft</strong> to keep it for next time.</div>
+  </div>
+{% endif %}

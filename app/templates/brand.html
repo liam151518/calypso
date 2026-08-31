@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Brand{% endblock %}
+
+{% import "_icons.html" as icons %}
+
+{% block content %}
+<header class="page-head">
+  <div class="page-head-text">
+    <h1>Brand</h1>
+    <p class="page-sub">Brand context prepended to every Generate submission. One profile is active at a time; switch via the sidebar.</p>
+  </div>
+</header>
+
+<div class="brand-layout">
+  <aside class="brand-list" aria-label="Brand profiles">
+    <div class="brand-list-head">{{ brands|length }} profile{{ '' if brands|length == 1 else 's' }}</div>
+    <ul class="brand-list-items">
+      {% for b in brands %}
+        <li class="brand-list-item {% if active_brand and active_brand.id == b.id %}is-active{% endif %}">
+          <a href="{{ url_for('brand_page') }}#{{ b.id }}" class="brand-list-link">
+            <strong>{{ b.name }}</strong>
+            <span class="brand-list-tag">
+              {% if b.tagline %}{{ b.tagline[:60] }}{% if b.tagline|length > 60 %}…{% endif %}{% else %}No tagline{% endif %}
+            </span>
+          </a>
+          <div class="brand-list-meta">
+            {% if active_brand and active_brand.id == b.id %}
+              <span class="status-pill" style="border-color: var(--signal); color: var(--signal);">
+                <span class="dot" style="background: var(--signal);"></span>Active
+              </span>
+            {% else %}
+              <form method="post" action="{{ url_for('brand_activate', brand_id=b.id) }}" style="margin: 0;">
+                <button type="submit" class="btn btn-ghost btn-sm">Activate</button>
+              </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('brand_delete', brand_id=b.id) }}" style="margin: 0;" onsubmit="return confirm('Delete brand profile &quot;{{ b.name|e }}&quot;?')">
+              <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--err);">Delete</button>
+            </form>
+          </div>
+        </li>
+      {% else %}
+        <li style="padding: 10px 14px; color: var(--text-3); font-size: var(--t-12);">None yet.</li>
+      {% endfor %}
+    </ul>
+    <div class="brand-list-foot">
+      {% if active_brand %}
+        <form method="post" action="{{ url_for('brand_clear') }}" style="margin: 0;">
+          <button type="submit" class="btn btn-ghost btn-sm">Clear active brand</button>
+        </form>
+      {% else %}
+        <span class="muted small">No brand active.</span>
+      {% endif %}
+    </div>
+  </aside>
+
+  <div class="brand-main">
+    {# New brand form #}
+    <section class="panel">
+      <div class="panel-head"><h2>New brand</h2></div>
+      <div class="panel-body">
+        <form method="post" action="{{ url_for('brand_save') }}">
+          <div class="grid-2">
+            <div class="field" style="margin: 0;">
+              <label for="brand-name-new">Name</label>
+              <input id="brand-name-new" type="text" name="name" required placeholder="e.g. Gachakingdoms">
+            </div>
+            <div class="field" style="margin: 0;">
+              <label for="brand-tagline-new">Tagline <span class="muted">(optional)</span></label>
+              <input id="brand-tagline-new" type="text" name="tagline" placeholder="e.g. Pull the blade. Rule the realm.">
+            </div>
+          </div>
+          <div class="field">
+            <label for="brand-audience-new">Audience <span class="muted">(optional)</span></label>
+            <input id="brand-audience-new" type="text" name="audience" placeholder="One sentence on who this is for.">
+          </div>
+          <div class="field">
+            <label for="brand-palette-new">Palette <span class="muted">(hex codes or rgb(...), comma-separated)</span></label>
+            <input id="brand-palette-new" type="text" name="palette" placeholder="#ff6a1f, #0a0a0c, #f6efe6, rgb(31, 42, 68)">
+          </div>
+          <div class="field">
+            <label for="brand-voice-new">Voice</label>
+            <input id="brand-voice-new" type="text" name="voice" placeholder="cinematic, intimate, archival">
+          </div>
+          <div class="grid-2">
+            <div class="field" style="margin: 0;">
+              <label for="brand-do-new">Do examples <span class="muted">(one per line)</span></label>
+              <textarea id="brand-do-new" name="do_examples" placeholder="tight close-ups&#10;warm light"></textarea>
+            </div>
+            <div class="field" style="margin: 0;">
+              <label for="brand-dont-new">Don&#39;t examples <span class="muted">(one per line)</span></label>
+              <textarea id="brand-dont-new" name="dont_examples" placeholder="bright saturated backgrounds&#10;stock typography"></textarea>
+            </div>
+          </div>
+          <div class="field" style="margin-top: 14px;">
+            <label for="brand-style-new">Style guide notes <span class="muted">(optional)</span></label>
+            <textarea id="brand-style-new" name="style_guide" placeholder="Hero always off-axis. Never break the 4th wall."></textarea>
+          </div>
+          <div class="actions" style="margin-top: 14px;">
+            <label class="brand-active-toggle">
+              <input type="checkbox" name="make_active" value="1"> Make active
+            </label>
+            <div class="flex-grow"></div>
+            <button type="submit" class="btn btn-primary">{{ icons.icon('check', size=14) }} Save brand</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    {# Per-brand editor — collapsible sections #}
+    {% for b in brands %}
+      <section class="panel brand-editor" id="{{ b.id }}">
+        <div class="brand-editor-head">
+          <h2>Edit · {{ b.name }}</h2>
+          {% if active_brand and active_brand.id == b.id %}
+            <span class="status-pill" style="border-color: var(--signal); color: var(--signal);">
+              <span class="dot" style="background: var(--signal);"></span>Active
+            </span>
+          {% else %}
+            <form method="post" action="{{ url_for('brand_activate', brand_id=b.id) }}" style="margin: 0;">
+              <button type="submit" class="btn btn-ghost btn-sm">Activate</button>
+            </form>
+          {% endif %}
+        </div>
+        <div class="brand-editor-body">
+          <form method="post" action="{{ url_for('brand_save', brand_id=b.id) }}">
+            <input type="hidden" name="name" value="{{ b.name }}">
+            <div class="grid-2">
+              <div class="field" style="margin: 0;">
+                <label>Tagline</label>
+                <input type="text" name="tagline" value="{{ b.tagline or '' }}">
+              </div>
+              <div class="field" style="margin: 0;">
+                <label>Audience</label>
+                <input type="text" name="audience" value="{{ b.audience or '' }}">
+              </div>
+            </div>
+            <div class="field">
+              <label>Palette</label>
+              <input type="text" name="palette" value="{{ b.palette|join(', ') if b.palette else '' }}">
+              {% if b.palette %}
+                <div class="palette-strip">
+                  {% for c in b.palette %}<span class="palette-swatch" style="background:{{ c }};" title="{{ c }}"></span>{% endfor %}
+                </div>
+              {% endif %}
+            </div>
+            <div class="field">
+              <label>Voice</label>
+              <input type="text" name="voice" value="{{ b.voice or '' }}">
+            </div>
+            <div class="grid-2">
+              <div class="field" style="margin: 0;">
+                <label>Do examples</label>
+                <textarea name="do_examples">{{ b.do_examples or '' }}</textarea>
+              </div>
+              <div class="field" style="margin: 0;">
+                <label>Don&#39;t examples</label>
+                <textarea name="dont_examples">{{ b.dont_examples or '' }}</textarea>
+              </div>
+            </div>
+            <div class="field">
+              <label>Style guide</label>
+              <textarea name="style_guide">{{ b.style_guide or '' }}</textarea>
+            </div>
+            <div class="actions" style="margin-top: 14px;">
+              <label class="brand-active-toggle">
+                <input type="checkbox" name="make_active" value="1" {% if active_brand and active_brand.id == b.id %}checked{% endif %}> Make active
+              </label>
+              <div class="flex-grow"></div>
+              <button type="submit" class="btn btn-primary">{{ icons.icon('check', size=14) }} Save changes</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

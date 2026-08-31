@@ -1,0 +1,12 @@
+{# Batch children list — recursively polled by HTMX. #}
+{# Expects: jobs (list of job dicts), batch_id #}
+{% for j in jobs %}
+  {% include "_partials/job_card_mini.html" %}
+{% endfor %}
+{% set still_running = jobs|selectattr('status', 'in', ['queued','running'])|list %}
+{% if still_running %}
+  <div hx-get="{{ url_for('batch_status', batch_id=batch_id) }}"
+       hx-trigger="every 2s"
+       hx-swap="none"
+       style="display: none;"></div>
+{% endif %}

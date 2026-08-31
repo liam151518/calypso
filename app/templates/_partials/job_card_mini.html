@@ -1,0 +1,16 @@
+{# Compact job card for use inside batch children. #}
+{# Expects: j (job dict) #}
+<article class="job-card job-card-mini status-{{ j.status }}">
+  <div class="job-card-head">
+    <span class="status-pill status-{{ j.status }}"><span class="dot"></span>{{ j.status }}</span>
+    <span class="job-card-id">{{ j.job_id }}</span>
+    <span class="job-card-meta">{{ j.model }} · {{ j.duration }}s · {{ j.resolution }}</span>
+  </div>
+  {% if j.status == 'succeeded' %}
+    <video controls preload="metadata" src="{{ url_for('outputs_video', ts=j.job_id) }}"></video>
+  {% elif j.status == 'failed' %}
+    <div class="job-card-error">{{ (j.error or 'Unknown error')[:120] }}</div>
+  {% elif j.status in ('queued','running') %}
+    <div class="job-progress"><div class="bar"></div></div>
+  {% endif %}
+</article>

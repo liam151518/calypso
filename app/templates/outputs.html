@@ -5,41 +5,51 @@
 
 {% block content %}
 <header class="page-head">
-  <div>
+  <div class="page-head-text">
     <h1>Outputs</h1>
-    <p class="page-sub">Every generation is saved to <code>outputs/&lt;timestamp&gt;/video.mp4</code>.</p>
+    <p class="page-sub">Every video you generated, with the prompt that made it.</p>
   </div>
-  <a href="{{ url_for('generate_page') }}" class="btn btn-primary">
-    {{ icons.icon('lightning', size=14) }} New generation
-  </a>
+  <div class="page-head-actions">
+    <a href="{{ url_for('generate_page') }}" class="btn btn-primary">{{ icons.icon('lightning', size=14) }} Generate another</a>
+  </div>
 </header>
 
-{% if not items %}
-  <div class="empty">
-    <h3>No outputs yet</h3>
-    <p>Generate your first video on the Generate page. It'll appear here when it's done.</p>
-    <a href="{{ url_for('generate_page') }}" class="btn btn-primary">
-      {{ icons.icon('lightning', size=14) }} Go to Generate
-    </a>
-  </div>
-{% else %}
+{% if items %}
   <div class="output-grid">
-    {% for o in items %}
+    {% for j in items %}
       <article class="output-cell">
         <div class="output-frame">
-          <video src="{{ o.rel_url }}" controls preload="metadata"></video>
+          <video src="{{ j.rel_url }}" controls preload="metadata"></video>
         </div>
+
         <div class="output-meta">
-          <span class="output-id">{{ o.id }}</span>
-          <span class="output-info">{{ o.size_mb }} MB</span>
+          <span class="output-id">{{ j.id }}</span>
+          <span class="text-3 small">{{ j.size_mb }} MB</span>
         </div>
+
+        {% if j.prompt or j.ref_ids %}
+          <details class="output-prompt">
+            <summary>View prompt</summary>
+            <div hx-get="{{ url_for('outputs_prompt', job_id=j.id) }}" hx-trigger="intersect once" hx-swap="outerHTML">
+              <div class="prompt-disclosure-body">
+                <div class="mono small text-3">Loading prompt…</div>
+              </div>
+            </div>
+          </details>
+        {% endif %}
+
         <div class="output-actions">
-          <a href="{{ o.rel_url }}" download class="btn btn-ghost btn-small">
-            {{ icons.icon('download', size=12) }} Download
-          </a>
+          <a href="{{ j.rel_url }}" download="{{ j.id }}.mp4" class="btn btn-ghost btn-sm flex-grow">Download</a>
         </div>
       </article>
     {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-icon">{{ icons.icon('film', size=16) }}</div>
+    <div class="empty-title">No outputs yet</div>
+    <div class="empty-sub">Run your first generation to see videos appear here.</div>
+    <a href="{{ url_for('generate_page') }}" class="btn btn-primary">{{ icons.icon('lightning', size=14) }} Go to Generate</a>
   </div>
 {% endif %}
 {% endblock %}

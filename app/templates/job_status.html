@@ -1,45 +1,37 @@
 {# Self-polling job card.
    - Initial render (after form submit) is returned by /generate (POST).
    - Subsequent renders are returned by /generate/<id>/status (GET) every 2s.
-   - outerHTML swap replaces this entire div with a new version that re-attaches polling.
    - Once status is terminal (succeeded/failed), polling stops so the result stays put. #}
 {% import "_icons.html" as icons %}
 {% set j = job %}
 {% set is_terminal = j.status in ('succeeded', 'failed') %}
-<div id="job-{{ j.job_id }}" class="job-card status-{{ j.status }}"
-     hx-get="/generate/{{ j.job_id }}/status"
+<article id="job-{{ j.job_id }}" class="job-card status-{{ j.status }}"
+     hx-get="{{ url_for('generate_status', job_id=j.job_id) }}"
      {% if not is_terminal %}hx-trigger="every 2s"{% endif %}
      hx-swap="outerHTML">
   <div class="job-card-head">
-    <span class="status-dot status-{{ j.status }}"></span>
-    <span class="status-text">{{ j.status }}</span>
-    <span class="job-id">{{ j.job_id }}</span>
+    <span class="status-pill status-{{ j.status }}">
+      <span class="dot"></span>{{ j.status }}
+    </span>
+    <span class="job-card-id">{{ j.job_id }}</span>
+    <span class="job-card-meta">{{ j.model }} · {{ j.duration }}s · {{ j.resolution }}{% if j.reference %} · +ref{% endif %}</span>
   </div>
 
-  <div class="job-prompt-line">{{ j.prompt }}</div>
-  <div class="job-meta-line">{{ j.model }} · {{ j.duration }}s · {{ j.resolution }}{% if j.reference %} · with reference{% endif %}</div>
+  {% if j.prompt %}<p class="job-card-prompt">{{ j.prompt }}</p>{% endif %}
 
   {% if j.status == 'succeeded' %}
-    <video controls preload="metadata" src="{{ url_for('outputs_video', ts=j.job_id) }}" class="job-video"></video>
-    <div class="job-stats">
-      <div class="stat-pair">
-        <span class="stat-label">Cost</span>
-        <span class="stat-value">${{ '%.2f' % (j.cost_usd or 0) }}</span>
-      </div>
-      <div class="stat-pair">
-        <span class="stat-label">Elapsed</span>
-        <span class="stat-value">{{ '%.1f' % (j.elapsed_seconds or 0) }}s</span>
-      </div>
-      <a href="{{ url_for('outputs_video', ts=j.job_id) }}" download class="btn btn-ghost btn-small">
-        {{ icons.icon('download', size=12) }} Download
-      </a>
+    <video controls preload="metadata" src="{{ url_for('outputs_video', ts=j.job_id) }}"></video>
+    <div class="job-card-meta" style="margin-top: 8px;">
+      <span>${{ '%.2f' % (j.cost_usd or 0) }}</span>
+      <span style="margin: 0 4px;">·</span>
+      <span>{{ '%.1f' % (j.elapsed_seconds or 0) }}s</span>
+      <span style="margin: 0 4px;">·</span>
+      <a href="{{ url_for('outputs_video', ts=j.job_id) }}" download class="btn-link">{{ icons.icon('download', size=12) }} Download</a>
     </div>
   {% elif j.status == 'failed' %}
-    <div class="job-error">{{ j.error or 'Unknown error' }}</div>
+    <div class="job-card-error">{{ j.error or 'Unknown error' }}</div>
   {% elif j.status in ('queued', 'running') %}
-    <div class="job-progress">
-      <div class="progress-track"><div class="progress-fill"></div></div>
-      <div class="progress-label">Polling every 2s</div>
-    </div>
+    <div class="job-progress"><div class="bar"></div></div>
+    <div class="text-3 small" style="margin-top: 4px;">Polling every 2s</div>
   {% endif %}
-</div>
+</article>

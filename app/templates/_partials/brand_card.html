@@ -1,0 +1,32 @@
+{# Brand banner — single horizontal row above the prompt composer. #}
+{# Expects: active_brand (dict | None) #}
+{% if active_brand %}
+<div class="brand-banner" id="brand-card">
+  <div class="brand-banner-mark" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l2.5 7L22 12l-7.5 3L12 22l-2.5-7L2 12l7.5-3z"/>
+    </svg>
+  </div>
+  <div class="brand-banner-info">
+    <span class="brand-banner-name">{{ active_brand.name }}</span>
+    {% if active_brand.tagline %}
+      <span class="brand-banner-tag">{{ active_brand.tagline }}</span>
+    {% endif %}
+  </div>
+  {% if active_brand.palette %}
+    <div class="brand-banner-palette">
+      {% for c in active_brand.palette[:6] %}
+        <span class="swatch" style="background:{{ c }};" title="{{ c }}"></span>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <div class="brand-banner-actions">
+    <a href="{{ url_for('brand_page') }}" class="btn-link">Edit</a>
+    <form method="post" action="{{ url_for('brand_clear') }}" class="inline-form" style="margin: 0;">
+      <button type="submit" class="btn-link">Clear</button>
+    </form>
+  </div>
+  {# Hidden input so brand_id flows through Generate submit. #}
+  <input type="hidden" name="brand_id" value="{{ active_brand.id }}" form="generate-form">
+</div>
+{% endif %}

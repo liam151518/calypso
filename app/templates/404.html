@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Not found{% endblock %}
 {% block content %}
-<section class="hero">
-  <h1>404</h1>
-  <p class="hero-sub">That page doesn't exist. <a href="{{ url_for('generate_page') }}">Back to Generate</a>.</p>
-</section>
+<header class="page-head">
+  <div class="page-head-text">
+    <h1>Not found</h1>
+    <p class="page-sub">That page doesn't exist. <a href="{{ url_for('generate_page') }}" style="color: var(--signal); text-decoration: underline;">Back to Generate →</a></p>
+  </div>
+</header>
 {% endblock %}

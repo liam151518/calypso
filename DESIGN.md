@@ -1,115 +1,88 @@
-# Calypso — Design system
+# Calypso — Design Direction
 
-> Captured from the shipped build, not written before it. This document describes the world Calypso lives in, derived from the actual CSS, templates, and component behavior in `app/static/app.css`, `app/templates/`, and `app/server.py`.
+Calypso is an operator console for a single-actor AI video pipeline.
+Mode: **Operate**. Decisions lead with scanability, consistency, and native expectations; brand lives in precise details.
 
-## Product in one sentence
+## Why dark
 
-A producer's console for a single-operator video-ad pipeline: type a prompt, hit Generate, the rendered clip lands in `outputs/`.
+The use scene is a producer at a desk, often with video playback in the same window. Dark surfaces keep reference imagery and generated video frames from being washed out by adjacent glow, which is the actual ambient condition. Picking light or dark by category is the failure mode; here it is picked from the scene.
 
-## Mode
+## Surface hierarchy
 
-**Operate.** The visitor's success is completing a task — generating a video, reviewing past outputs, managing references, configuring keys. Scannability, clarity, and native affordances outrank expression. Brand lives in the precise details: a single saturated signal-orange that carries action, an editorial serif that gives the dashboard its voice, a broadcast-control-room sidebar.
+Four layers, stacked top-down:
 
-## Visual world
+1. `--bg` — app background. Receives no chrome.
+2. `--surface` — the sidebar rail and per-page content areas.
+3. `--panel` — group containers (form sections, list blocks).
+4. `--elevated` — controls at rest (inputs, dropdowns, selectors).
+5. `--elevated-2` — controls on hover / focus.
 
-A 1970s hifi receiver crossed with a broadcast control room, filtered through editorial design. Dark ink ground (operator's studio), warm bone foreground, brass for metadata, a single signal-orange that lights up only for action. Typography carries personality: Playfair Display for page heads and primary actions (a serif with character, earned by the brand being a collector brand), Inter for body, JetBrains Mono for technical metadata (job IDs, model names, durations).
+Lines are a single 1px hairline (`--line`). No decorative borders of any other weight; status is conveyed by the surface tint and the status pill, never a colored `border-left`.
 
-## Palette
+## Type
 
-| Token         | Hex       | Role                                          |
-| ------------- | --------- | --------------------------------------------- |
-| `--ink`       | `#0a0a0c` | Page ground                                   |
-| `--ink-2`     | `#131316` | Cards, panels                                 |
-| `--ink-3`     | `#1c1c20` | Form inputs, hover grounds                    |
-| `--ink-4`     | `#2a2a2f` | Stronger hover, button secondary              |
-| `--rule`      | `#3a3a42` | Borders, rules                                |
-| `--rule-soft` | `#2a2a30` | Subtle borders                                |
-| `--bone`      | `#f0ece4` | Primary foreground                            |
-| `--bone-2`    | `#d4cfc2` | Secondary foreground, labels                  |
-| `--bone-3`    | `#9a948a` | Tertiary foreground, hint text                |
-| `--signal`    | `#ff6a1f` | Primary action, active state, focus ring      |
-| `--signal-2`  | `#ff8a47` | Hover for `--signal`                          |
-| `--brass`     | `#c89d5e` | Metadata, secondary chrome, "queued" status   |
-| `--ok`        | `#6ec27b` | Succeeded status, "set" indicator             |
-| `--err`       | `#e26b5c` | Failed status, error message                  |
+One family throughout the chrome: **Inter** at 400 / 500 / 600. Headings, body, labels, buttons — all Inter. The temptation to add a display face for a "magazine" feel was refused; this is an interface, not a read surface.
 
-Strategy: **Committed**. A single signal-orange carries ~15–20% of the surface (one primary button per page, one accent rail on the active job card, the focus ring). Everything else is ink + bone.
+**JetBrains Mono** appears only in places that are genuinely code or data: ref ids, job ids, environment variable names, palette hex codes, prompt bodies in the disclosure panel, error-message text.
 
-## Typography
+Type scale: fixed rem steps at 1.2 ratio (`--t-12` … `--t-28`). No clamp() headings. Display body is 16px; the page-head title is 28px, 600 weight, `-0.025em` tracking. The font-feature settings `cv11, ss01` are enabled for tabular figures and the Inter alternate-one.
 
-- **Display** — `Playfair Display`, weights 500 and 700. Page titles only. Tracking `-0.025em`.
-- **Body** — `Inter`, weights 400, 500, 600. All UI text. Tabular nums enabled globally.
-- **Mono** — `JetBrains Mono`, weights 400, 500. Labels (uppercase, tracked 0.1–0.14em), job IDs, durations, technical metadata.
+## Color
 
-Display and mono fonts are self-hosted from `app/static/fonts/` so the app runs without a network round-trip. System fallbacks: `Times New Roman`, `-apple-system`, `ui-monospace`.
+Restrained. Single accent:
 
-Type scale: H1 44px (30px on mobile), H2 18px, body 14px, hint 11–13px, mono labels 10–11px.
+- **signal-orange** `#ff6a1f` — the only chromatic note. Reserved for primary actions, current selection, focus rings, status-running dots, and the active-brand marker. It does not decorate.
+
+Status:
+- `ok` green for succeeded
+- `err` red for failed
+- `warn` amber for queued / not configured
+
+State vocabulary: hover, focus, active, disabled. Every interactive surface ships all four. The focus ring is 2px solid signal-orange with 1px offset.
 
 ## Layout
 
-- **Sidebar** — fixed-width 240px on desktop, sticky horizontal nav bar on mobile. Contains brand mark, 4 nav links in mono caps, and a liveness indicator.
-- **Main** — fluid, max 1180px, padded 40–48px horizontal.
-- **Page head** — serif H1 + sub-paragraph, separated from content by a single 1px rule. No kicker/eyebrow label.
-- **Card** — `--ink-2` background, 1px `--rule` border, 14px radius, 28px padding.
-- **Grid** — 1fr 1fr for paired fields (model+duration, resolution+reference), collapses to single column under 720px.
+Sidebar rail on the left (232px, sticky, full-height). Content column has a max width of 1280px and 48px gutters that collapse to 20px below 900px.
 
-## Surfaces
+Sectioning uses panels: one panel per page-section, title in `panel-head`, body in `panel-body`. No kicker or eyebrow above panel titles — the title carries the section's weight.
 
-- Cards: 1px border, no shadow. The depth comes from layered ink values, not offset shadows.
-- Buttons: layered ink for secondary, signal-orange for primary. Hero variant adds a soft orange glow.
-- Inputs: `--ink-3` ground, 1px `--rule` border, 3px signal-orange focus ring at 18% opacity.
-- Status dots: 6px circles colored by job state. Animated pulse for "loading" and "running".
-- Reference previews: 4:3 aspect, dark diagonal-stripe ground visible behind transparent images.
+Two-column form on Generate: prompt composer (left) + side column (right). The breakpoint at 900px collapses to a single column.
 
-## Motion
-
-One authored moment: the **progress bar** during a running job — a 3px signal-orange bar that slides 40%→60%→280% across the track every 1.6s with a cubic ease-in-out. No hover effects on the dashboard nav (instant state change), no entrance animations on page load, no staggered reveals. Hover transitions: 120ms ease-out on `color`, `background-color`, `border-color`, `box-shadow`. Reduced-motion preference is respected globally.
-
-## Iconography
-
-Hand-authored SVGs in `app/templates/_icons.html`. Single 1.5px stroke, `currentColor` for state. Used in nav (4 icons), form (lightning, upload, download, trash), settings. No icon library dependency.
+References and Brand pages use a sidebar-list + main-content grid; both collapse below 900px.
 
 ## Components
 
-- **Job card** — left-rail color by status (orange=running, brass=queued, green=succeeded, red=failed). Mono-caps status text, mono job ID right-aligned. Prompt + meta line. Conditional: video player + cost/elapsed stats (succeeded) or error message (failed) or progress bar (queued/running).
-- **Reference cell** — 4:3 preview, name (truncated), file type + size, full-width ghost Remove button.
-- **Output cell** — 16:9 video frame, mono ID + size, ghost Download button.
-- **Key row** — three-column grid (200px service name, 1fr status, 220px form). Status shows Set/Not configured with masked value when set.
-- **Empty state** — centered headline (serif), one-sentence description (body), single primary action button.
+- **Buttons**: 32px height, 14px horizontal padding, `--r-2` (6px) radius. Three styles: primary (signal), ghost (transparent on hover-elevate), danger (transparent with red border). A smaller `--sm` variant at 26px.
+- **Inputs / selects / textareas**: `--elevated` background, `--line` border. Focus state lifts to `--elevated-2`, border color to signal, 3px halo in `--signal-bg`.
+- **Tag pills**: rounded (`border-radius: 999px`), mono, lowercase. Three states: static (read-only), filter (toggleable group), and dismissable-with-X (on reference cards).
+- **Job card**: surface panel + a single status pill in its top-left corner. No colored sidebar/border-left decorations.
+- **Brand banner on Generate**: a single horizontal row, never a card with a vertical signal stripe.
+- **Empty state**: a 36px circular icon in `--elevated`, a title, a 1-sentence subhead, and an action. Not italic helper text. Empty states teach the interface.
 
-## States
+## Motion
 
-Every interactive element covers: hover (color shift), focus (orange ring), active (scale 0.96), disabled (40% opacity). Job statuses: queued → running → succeeded/failed. Form inputs: default, focus, error (via HTMX `hx-on::after-request`). Key rows: set vs not set.
+150–200ms transitions on color, background, border. State changes use ease (`cubic-bezier(0.4, 0, 0.2, 1)`). One authored moment: the indeterminate progress bar on running jobs (an orange bar sliding left-to-right in a 3px track). No choreographed load sequences. `prefers-reduced-motion` halts motion entirely.
 
-## Browser surfaces (themed, not defaulted)
+## Browser surfaces
 
-- Custom scrollbar: 10px wide, ink-2 track, ink-4 thumb.
-- Custom focus ring: 2px solid signal, 2px offset, 3px radius.
-- Custom selection: signal-orange background, ink foreground.
-- `font-variant-numeric: tabular-nums` globally so job IDs and file sizes align.
-- `-webkit-font-smoothing: antialiased` for crisp Inter on macOS.
-- `prefers-reduced-motion` zeroes all animations and transitions.
+Selection, scrollbar, focus ring, and numerals are themed from the palette. Without this, the page reads as assembled; with it, as built.
 
-## Copy
+## Banned
 
-- Section labels: mono uppercase, tracked (e.g. "API keys", "Recent jobs", "Outputs").
-- Buttons name their action: "Generate video", "Upload", "Remove key", "Download".
-- Errors name the problem and the recovery: "No API keys configured. Open Settings and add at least one key." (Not "Error: no keys".)
-- Empty states invite: "No outputs yet. Generate your first video on the Generate page."
-- Brand tag: "Producer's console" (not "ad studio" or generic "dashboard").
+These are the category defaults the design refuses; the brief would have to specifically call for any of them to earn them back.
 
-## What this design refuses
+- Kicker/eyebrow labels above section titles or headings. The heading carries the weight.
+- A giant hero button on Generate. Primary actions are 32px tall, not 56px.
+- Colored `border-left` or `border-right` decorative stripes on cards or alerts.
+- Display fonts in UI labels, buttons, or data.
+- Gradient text, glass-as-decoration, hard offset box-shadows.
+- Emoji or unicode glyphs standing in for icons. All icons are SVG, single weight (1.5px), `currentColor`, sized to the control they live in.
 
-- Gradient text — emphasis from weight and size.
-- Glass / blur — decoration without a function.
-- Borders thicker than 1px on cards — structure, not depth.
-- Eyebrow / kicker labels above headings — the heading carries its own weight.
-- Same-size card+icon+heading+text as the page structure — uses editorial cells and control-panel rows instead.
-- Unicode glyphs (▣ ▶ ◆ ⚙) standing in for icons — replaced with hand-drawn SVGs.
-- Hard offset shadows (`4px 4px 0`) outside a neobrutalist world.
-- Pink/purple gradient accents — replaced with a single committed signal-orange.
-- A modal for a task that doesn't need protected focus.
+## Acceptance
 
-## Provenance
+Each shipped surface must:
 
-Every shipped raster was generated for this build. The three test images used during visual QA (`/tmp/qa_ref.png`, the synthetic outputs video) are diagnostic fixtures, not shipping assets. The reference previews, output video frames, and SVG icons are the production assets.
+- Render against a populated database without orphan or empty blocks.
+- Show all states of every interactive control: default, hover, focus, active, disabled.
+- Pass 347 pytest tests with zero flakes.
+- Render at 1440px desktop and 360px mobile without overflow.
