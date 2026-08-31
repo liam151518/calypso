@@ -1,62 +1,70 @@
 {% extends "base.html" %}
 {% block title %}Settings{% endblock %}
 
+{% import "_icons.html" as icons %}
+
 {% block content %}
-<section class="hero">
-  <h1>Settings</h1>
-  <p class="hero-sub">API keys are stored locally in <code>.env</code>. They never leave your machine.</p>
-</section>
+<header class="page-head">
+  <div>
+    <h1>Settings</h1>
+    <p class="page-sub">API keys are stored locally in <code>.env</code>. They never leave your machine.</p>
+  </div>
+</header>
 
 <div class="card">
-  <table class="keys-table">
-    <thead>
-      <tr>
-        <th>Service</th>
-        <th>Env var</th>
-        <th>Status</th>
-        <th>Set / Update</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for k in keys %}
-        <tr>
-          <td>{{ k.service }}</td>
-          <td><code>{{ k.env_var }}</code></td>
-          <td>
-            {% if k.is_set %}
-              <span class="status-dot status-ok"></span> set
-              <span class="masked">({{ k.masked }})</span>
-            {% else %}
-              <span class="status-dot status-failed"></span> missing
-            {% endif %}
-          </td>
-          <td>
-            <form action="{{ url_for('settings_save', env_var=k.env_var) }}" method="post" class="key-form">
+  <h2 class="section-title">API keys</h2>
+  <div class="keys-list">
+    {% for k in keys %}
+      <div class="key-row">
+        <div class="key-service">
+          <span class="key-service-name">{{ k.service }}</span>
+          <span class="key-service-var">{{ k.env_var }}</span>
+        </div>
+
+        <div class="key-status-block">
+          {% if k.is_set %}
+            <div class="key-status-line set">
+              <span class="status-dot status-ok"></span>
+              <span>Set</span>
+            </div>
+            <div class="key-masked">{{ k.masked }}</div>
+          {% else %}
+            <div class="key-status-line missing">
+              <span class="status-dot status-failed"></span>
+              <span>Not configured</span>
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="key-form">
+          <form action="{{ url_for('settings_save', env_var=k.env_var) }}" method="post">
+            <div class="key-form-row">
               <input type="password" name="value" placeholder="{{ k.placeholder }}" autocomplete="off" required>
-              <button type="submit" class="btn btn-small btn-primary">Save</button>
+              <button type="submit" class="btn btn-primary btn-small">
+                {% if k.is_set %}Update{% else %}Save{% endif %}
+              </button>
+            </div>
+          </form>
+          {% if k.is_set %}
+            <form action="{{ url_for('settings_delete', env_var=k.env_var) }}" method="post"
+                  onsubmit="return confirm('Delete {{ k.env_var }}?');">
+              <button type="submit" class="btn btn-danger btn-delete">
+                {{ icons.icon('trash', size=11) }} Remove key
+              </button>
             </form>
-          </td>
-          <td>
-            {% if k.is_set %}
-              <form action="{{ url_for('settings_delete', env_var=k.env_var) }}" method="post"
-                    onsubmit="return confirm('Delete {{ k.env_var }}?');">
-                <button type="submit" class="btn btn-small btn-danger">Delete</button>
-              </form>
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
 </div>
 
-<section class="hint-block">
+<aside class="notes-block">
   <h3>Notes</h3>
   <ul>
-    <li><strong>fal.ai</strong> — used by H3 Max and Kling models. Get one at <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener">fal.ai/dashboard/keys</a>.</li>
+    <li><strong>fal.ai</strong> — used by H3 Max and Kling models. Get a key at <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener">fal.ai/dashboard/keys</a>. {{ icons.icon('external', size=11) }}</li>
     <li><strong>MiniMax (H3 cloud)</strong> — direct access to the H3 API. Optional.</li>
     <li><strong>Telegram bot</strong> — optional, only needed if you wire up the Telegram notifier later.</li>
   </ul>
-</section>
+</aside>
 {% endblock %}

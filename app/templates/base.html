@@ -1,4 +1,12 @@
 <!doctype html>
+<!--
+  THESIS: A producer's console for a single-operator ad pipeline — broadcast control room, editorial typography, signal-orange accent.
+  OWN-WORLD: ink ground + bone text + brass metadata + signal-orange action; serif display (Playfair) + Inter body + JetBrains Mono for technical.
+  STORY: Operator opens one of four panels — Generate (make a video), Outputs (review what was made), References (curate inputs), Settings (vault keys).
+  FIRST VIEWPORT: Sidebar (240px) holds brand mark + 4 nav links in mono caps + liveness. Main starts with page-head (large serif title, rule below), then content.
+  FORM: Operate. Single-user desktop app. Dark by use scene (operator's studio).
+  FINISH: this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.
+-->
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -10,29 +18,45 @@
 <body>
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark">⚔</div>
+      <div class="brand-mark">
+        {# Calypso mark — a stylized "C" with the signal-orange slash (collector / control) #}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 6a8 8 0 00-13.5 4"/>
+          <path d="M5 18a8 8 0 0013.5-4"/>
+          <path d="M12 2v3M12 19v3" stroke="var(--signal)" stroke-width="2"/>
+        </svg>
+      </div>
       <div class="brand-text">
         <div class="brand-name">Calypso</div>
-        <div class="brand-tag">local-first ad studio</div>
+        <div class="brand-tag">Producer's console</div>
       </div>
     </div>
+
+    {% import "_icons.html" as icons %}
+
     <nav class="nav">
       <a href="{{ url_for('generate_page') }}" class="{% if request.endpoint == 'generate_page' %}active{% endif %}">
-        <span class="nav-icon">▶</span> Generate
+        <span class="nav-icon">{{ icons.icon('lightning') }}</span>
+        Generate
       </a>
       <a href="{{ url_for('outputs_page') }}" class="{% if request.endpoint == 'outputs_page' %}active{% endif %}">
-        <span class="nav-icon">▣</span> Outputs
+        <span class="nav-icon">{{ icons.icon('film') }}</span>
+        Outputs
       </a>
       <a href="{{ url_for('references_page') }}" class="{% if request.endpoint == 'references_page' %}active{% endif %}">
-        <span class="nav-icon">◆</span> References
+        <span class="nav-icon">{{ icons.icon('image') }}</span>
+        References
       </a>
       <a href="{{ url_for('settings_page') }}" class="{% if request.endpoint == 'settings_page' %}active{% endif %}">
-        <span class="nav-icon">⚙</span> Settings
+        <span class="nav-icon">{{ icons.icon('key') }}</span>
+        Settings
       </a>
     </nav>
+
     <div class="sidebar-foot">
       <div id="backend-status" hx-get="{{ url_for('health') }}" hx-trigger="load, every 30s" hx-swap="innerHTML">
-        <span class="status-dot status-loading"></span> checking…
+        <span class="status-dot status-loading"></span>
+        <span>backend</span>
       </div>
     </div>
   </aside>

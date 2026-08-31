@@ -1,74 +1,84 @@
 {% extends "base.html" %}
 {% block title %}Generate{% endblock %}
 
+{% import "_icons.html" as icons %}
+
 {% block content %}
-<section class="hero">
-  <h1>Generate a video</h1>
-  <p class="hero-sub">Type a prompt, pick a reference, hit Generate. The video lands in <code>outputs/</code>.</p>
-</section>
+<header class="page-head">
+  <div>
+    <h1>Make a video</h1>
+    <p class="page-sub">Type a prompt, pick a reference, hit Generate. The video lands in <code>outputs/&lt;timestamp&gt;/video.mp4</code>.</p>
+  </div>
+</header>
 
 {% if not keys|selectattr('is_set')|list %}
-<div class="banner banner-warn">
-  No API keys configured yet. Add at least one in
-  <a href="{{ url_for('settings_page') }}">Settings</a> before generating.
+<div class="banner">
+  {{ icons.icon('warn', size=18, attrs='class="banner-icon"') }}
+  <span>No API keys configured. Add at least one in <a href="{{ url_for('settings_page') }}">Settings</a> before generating.</span>
 </div>
 {% endif %}
 
-<form id="generate-form" class="card"
+<form id="generate-form"
       hx-post="{{ url_for('generate_submit') }}"
-      hx-trigger="submit"
-      hx-swap="none"
-      hx-on::after-request="if(event.detail.xhr.status === 200) { handleGenerateSuccess(JSON.parse(event.detail.xhr.responseText)); } else { showGenerateError(JSON.parse(event.detail.xhr.responseText || '{}').error || 'Generation failed'); }">
+      hx-target="#job-region"
+      hx-swap="innerHTML"
+      hx-on::after-request="if(event.detail.xhr.status === 400) { showGenerateError(JSON.parse(event.detail.xhr.responseText).error); document.getElementById('job-region').innerHTML = ''; }"
+      hx-disabled-elt=".btn-primary">
 
-  <div class="field">
-    <label for="prompt">Prompt</label>
-    <textarea id="prompt" name="prompt" rows="3" required
-              placeholder="e.g. damascus cabinet reveal, cinematic, 4K, golden hour"></textarea>
-  </div>
-
-  <div class="grid-2">
+  <div class="card">
     <div class="field">
-      <label for="model">Model</label>
-      <select id="model" name="model">
-        {% for m in VALID_MODELS %}
-          <option value="{{ m }}" {% if m == 'auto' %}selected{% endif %}>{{ m }}</option>
-        {% endfor %}
-      </select>
-      <div class="hint">auto routes to H3 cloud if the key is set, else H3 Max via fal.ai.</div>
+      <label for="prompt">Prompt</label>
+      <textarea id="prompt" name="prompt" rows="3" required
+                placeholder="e.g. damascus cabinet reveal, cinematic, golden hour, slow dolly"></textarea>
     </div>
 
-    <div class="field">
-      <label for="duration">Duration</label>
-      <input type="number" id="duration" name="duration" min="1" max="60" value="8">
-      <div class="hint">seconds per clip</div>
-    </div>
-  </div>
+    <div class="grid-2">
+      <div class="field">
+        <label for="model">Model</label>
+        <select id="model" name="model">
+          {% for m in VALID_MODELS %}
+            <option value="{{ m }}" {% if m == 'auto' %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+        <div class="hint">auto · H3 cloud if MINIMAX key set, else H3 Max via fal.ai</div>
+      </div>
 
-  <div class="grid-2">
-    <div class="field">
-      <label for="resolution">Resolution</label>
-      <select id="resolution" name="resolution">
-        {% for r in VALID_RESOLUTIONS %}
-          <option value="{{ r }}" {% if r == '768p' %}selected{% endif %}>{{ r }}</option>
-        {% endfor %}
-      </select>
+      <div class="field">
+        <label for="duration">Duration</label>
+        <input type="number" id="duration" name="duration" min="1" max="60" value="8">
+        <div class="hint">seconds per clip</div>
+      </div>
     </div>
 
-    <div class="field">
-      <label for="reference">Reference (optional)</label>
-      <select id="reference" name="reference">
-        <option value="">— none, pick from Folder A —</option>
-        {% for r in references %}
-          <option value="{{ r.rel_url }}">{{ r.name }}</option>
-        {% endfor %}
-      </select>
-      <div class="hint">Upload more on the <a href="{{ url_for('references_page') }}">References</a> page.</div>
-    </div>
-  </div>
+    <div class="grid-2">
+      <div class="field">
+        <label for="resolution">Resolution</label>
+        <select id="resolution" name="resolution">
+          {% for r in VALID_RESOLUTIONS %}
+            <option value="{{ r }}" {% if r == '768p' %}selected{% endif %}>{{ r }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-  <div class="actions">
-    <button type="submit" class="btn btn-primary">Generate</button>
-    <span id="generate-status" class="hint"></span>
+      <div class="field">
+        <label for="reference">Reference</label>
+        <select id="reference" name="reference">
+          <option value="">— pick from Folder A automatically —</option>
+          {% for r in references %}
+            <option value="{{ r.id }}">{{ r.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="hint">upload more on the <a href="{{ url_for('references_page') }}">References</a> page</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn btn-primary btn-hero">
+        {{ icons.icon('lightning', size=14) }}
+        Generate video
+      </button>
+      <span id="generate-status" class="hint"></span>
+    </div>
   </div>
 </form>
 
@@ -81,9 +91,9 @@
     {% for j in recent_jobs %}
       <li>
         <span class="status-dot status-{{ j.status }}"></span>
-        <code>{{ j.job_id }}</code>
-        <span class="job-prompt">{{ j.prompt[:60] }}{% if j.prompt|length > 60 %}…{% endif %}</span>
-        <span class="job-meta">{{ j.model }} · {{ j.duration }}s · {{ j.resolution }}</span>
+        <span class="job-id-tag">{{ j.job_id }}</span>
+        <span class="job-prompt-text">{{ j.prompt[:60] }}{% if j.prompt|length > 60 %}…{% endif %}</span>
+        <span class="job-meta-text">{{ j.model }} · {{ j.duration }}s · {{ j.resolution }}</span>
       </li>
     {% endfor %}
   </ul>
@@ -91,21 +101,11 @@
 {% endif %}
 
 <script>
-  function handleGenerateSuccess(data) {
-    const region = document.getElementById('job-region');
-    region.innerHTML = '<div hx-get="/generate/' + data.job_id + '/status" hx-trigger="load, every 2s" hx-swap="innerHTML">loading…</div>';
-    // Tell HTMX to process the new node
-    if (window.htmx) htmx.process(region);
-    document.getElementById('generate-status').textContent = 'queued · ' + data.job_id;
-  }
   function showGenerateError(msg) {
-    document.getElementById('generate-status').textContent = msg;
+    const status = document.getElementById('generate-status');
+    status.textContent = msg;
+    status.style.color = 'var(--err)';
+    setTimeout(() => { status.style.color = ''; }, 4000);
   }
-  // Prevent default form submit (since hx-on::after-request doesn't stop it)
-  document.getElementById('generate-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    // Use HTMX to send the request
-    htmx.trigger(this, 'submit');
-  });
 </script>
 {% endblock %}

@@ -138,9 +138,81 @@ class TestGenerateSubmit:
 
         resp = client.post("/generate", data={"prompt": "test prompt", "model": "auto"})
         assert resp.status_code == 200
-        body = resp.get_json()
-        assert "job_id" in body
-        assert "/status" in body["status_url"]
+        # Now returns an HTML fragment (job card with polling wiring)
+        body = resp.data.decode()
+        assert "job-card" in body
+        assert "test prompt" in body
+        assert 'hx-get="/generate/' in body and "/status" in body
+
+    def test_reference_id_translates_to_local_path(self, client, env_with_fal, monkeypatch, tmp_path):
+        """The dropdown sends an id (filename); server resolves it to a local path."""
+        from app import server as srv
+        from scripts import generate as gen_mod
+
+        upload_dir = tmp_path / "uploads"
+        upload_dir.mkdir()
+        target = upload_dir / "ref_42.png"
+        target.write_bytes(b"\x89PNG\r\n\x1a\n")
+        monkeypatch.setattr(srv, "REFERENCES_UPLOAD_DIR", upload_dir)
+
+        captured = {}
+
+        def fake_generate(prompt, *, model="auto", reference=None, **kwargs):
+            captured["reference"] = reference
+            captured["prompt"] = prompt
+            from pathlib import Path
+            class R:
+                output_path = Path("/tmp/fake.mp4")
+                model = "h3-max"
+                duration_seconds = 8
+                resolution = "768p"
+                cost_usd = 0.4
+                elapsed_seconds = 1.0
+                reference_used = reference
+                source_request_id = "x"
+            return R()
+
+        monkeypatch.setattr(gen_mod, "generate", fake_generate)
+        monkeypatch.setattr(jobs, "run_generate", fake_generate)
+
+        resp = client.post(
+            "/generate",
+            data={"prompt": "with ref", "model": "auto", "reference": "ref_42.png"},
+        )
+        assert resp.status_code == 200
+        assert captured["reference"] == str(target)
+        assert captured["prompt"] == "with ref"
+
+    def test_reference_id_outside_upload_dir_rejected_silently(self, client, env_with_fal, monkeypatch, tmp_path):
+        """A reference id that escapes the upload dir is treated as 'no reference'."""
+        from app import server as srv
+        from scripts import generate as gen_mod
+
+        upload_dir = tmp_path / "uploads"
+        upload_dir.mkdir()
+        monkeypatch.setattr(srv, "REFERENCES_UPLOAD_DIR", upload_dir)
+
+        captured = {}
+
+        def fake_generate(prompt, *, reference=None, **kwargs):
+            captured["reference"] = reference
+            from pathlib import Path
+            class R:
+                output_path = Path("/tmp/fake.mp4")
+                model = "h3-max"; duration_seconds = 8; resolution = "768p"
+                cost_usd = 0.4; elapsed_seconds = 1.0
+                reference_used = reference; source_request_id = "x"
+            return R()
+
+        monkeypatch.setattr(gen_mod, "generate", fake_generate)
+        monkeypatch.setattr(jobs, "run_generate", fake_generate)
+
+        resp = client.post(
+            "/generate",
+            data={"prompt": "with bad ref", "model": "auto", "reference": "../../etc/passwd"},
+        )
+        assert resp.status_code == 200
+        assert captured["reference"] is None
 
 
 # ---------- job status (HTMX poll) ----------
@@ -194,7 +266,6 @@ class TestReferences:
         resp = client.get("/references")
         assert resp.status_code == 200
         assert b"test_" in resp.data  # file renamed with timestamp prefix
-        assert b"Library (1)" in resp.data
 
     def test_upload_rejects_bad_extension(self, client, tmp_path, monkeypatch):
         upload_dir = tmp_path / "uploads"

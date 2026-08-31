@@ -1,27 +1,44 @@
 {% extends "base.html" %}
 {% block title %}Outputs{% endblock %}
 
+{% import "_icons.html" as icons %}
+
 {% block content %}
-<section class="hero">
-  <h1>Outputs</h1>
-  <p class="hero-sub">Every generation is saved to <code>outputs/&lt;timestamp&gt;/video.mp4</code>.</p>
-</section>
+<header class="page-head">
+  <div>
+    <h1>Outputs</h1>
+    <p class="page-sub">Every generation is saved to <code>outputs/&lt;timestamp&gt;/video.mp4</code>.</p>
+  </div>
+  <a href="{{ url_for('generate_page') }}" class="btn btn-primary">
+    {{ icons.icon('lightning', size=14) }} New generation
+  </a>
+</header>
 
 {% if not items %}
-  <div class="empty-state">
-    <p>No outputs yet. Generate one on the <a href="{{ url_for('generate_page') }}">Generate</a> page.</p>
+  <div class="empty">
+    <h3>No outputs yet</h3>
+    <p>Generate your first video on the Generate page. It'll appear here when it's done.</p>
+    <a href="{{ url_for('generate_page') }}" class="btn btn-primary">
+      {{ icons.icon('lightning', size=14) }} Go to Generate
+    </a>
   </div>
 {% else %}
   <div class="output-grid">
     {% for o in items %}
-      <div class="output-card">
-        <video src="{{ o.rel_url }}" controls preload="metadata" class="output-video"></video>
-        <div class="output-meta">
-          <div class="output-id"><code>{{ o.id }}</code></div>
-          <div class="output-info">{{ o.size_mb }} MB</div>
+      <article class="output-cell">
+        <div class="output-frame">
+          <video src="{{ o.rel_url }}" controls preload="metadata"></video>
         </div>
-        <a href="{{ o.rel_url }}" download class="btn btn-small">Download</a>
-      </div>
+        <div class="output-meta">
+          <span class="output-id">{{ o.id }}</span>
+          <span class="output-info">{{ o.size_mb }} MB</span>
+        </div>
+        <div class="output-actions">
+          <a href="{{ o.rel_url }}" download class="btn btn-ghost btn-small">
+            {{ icons.icon('download', size=12) }} Download
+          </a>
+        </div>
+      </article>
     {% endfor %}
   </div>
 {% endif %}

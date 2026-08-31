@@ -312,7 +312,7 @@ else
   fail "app/requirements.txt missing"
 fi
 
-for tpl in base.html generate.html references.html outputs.html settings.html job_status.html 404.html; do
+for tpl in base.html generate.html references.html outputs.html settings.html job_status.html job_block.html 404.html _icons.html _health.html; do
   if [[ -f "app/templates/$tpl" ]]; then pass "template: $tpl"
   else fail "missing template: app/templates/$tpl"
   fi
@@ -321,6 +321,13 @@ done
 for asset in app.css htmx.min.js; do
   if [[ -f "app/static/$asset" ]]; then pass "static asset: $asset"
   else fail "missing static asset: app/static/$asset"
+  fi
+done
+
+# Fonts — production-grade design requires self-hosted type
+for font in playfair-display-500.ttf playfair-display-700.ttf inter-400.ttf inter-500.ttf inter-600.ttf jetbrains-mono-400.ttf jetbrains-mono-500.ttf; do
+  if [[ -f "app/static/fonts/$font" ]]; then pass "font: $font"
+  else fail "missing font: $font"
   fi
 done
 

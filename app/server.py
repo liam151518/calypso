@@ -97,6 +97,21 @@ def _generate_outputs_for_gallery() -> list[dict]:
     return out
 
 
+def _render_job_block(job) -> str:
+    """Render the job-region HTML block for a newly-created job.
+
+    Includes the job card and the HTMX polling wiring, so the page only needs
+    to swap this string into #job-region.
+    """
+    from flask import render_template
+
+    return render_template(
+        "job_block.html",
+        job=job.to_dict(),
+        status_url=url_for("generate_status", job_id=job.job_id),
+    )
+
+
 def _references_for_library() -> list[dict]:
     """Walk references/uploads/ and return metadata for the references page."""
     out: list[dict] = []
@@ -156,7 +171,14 @@ def _register_routes(app: Flask) -> None:
     def generate_submit():
         prompt = (request.form.get("prompt") or "").strip()
         model = (request.form.get("model") or "auto").strip()
-        reference = (request.form.get("reference") or "").strip() or None
+        # The dropdown sends a reference file's id (filename). Translate to absolute path.
+        reference_id = (request.form.get("reference") or "").strip() or None
+        reference_path = None
+        if reference_id:
+            candidate = REFERENCES_UPLOAD_DIR / reference_id
+            # Safety: ensure the resolved path is still inside the upload dir
+            if candidate.exists() and REFERENCES_UPLOAD_DIR in candidate.resolve().parents:
+                reference_path = str(candidate)
         try:
             duration = int(request.form.get("duration") or 8)
         except ValueError:
@@ -190,14 +212,14 @@ def _register_routes(app: Flask) -> None:
         job = jobs.create_job(
             prompt,
             model=model,
-            reference=reference,
+            reference=reference_path,
             duration=duration,
             resolution=resolution,
         )
         jobs.start_job(job)
-        # The form submit was via fetch() from the page (returns JSON).
-        # HTMX swaps the partial returned by GET /generate/<id>/status into the page.
-        return jsonify({"job_id": job.job_id, "status_url": url_for("generate_status", job_id=job.job_id)})
+        # Return HTML for HTMX to swap in. The returned block sets up polling itself
+        # so the page just needs to swap it into #job-region.
+        return _render_job_block(job)
 
     @app.route("/generate/<job_id>/status")
     def generate_status(job_id: str):
