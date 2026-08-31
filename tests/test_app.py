@@ -49,7 +49,41 @@ def app(tmp_path: Path, monkeypatch):
 
 @pytest.fixture
 def client(app):
-    return app.test_client()
+    """Test client that opts GETs into the legacy Jinja UI via HX-Request.
+
+    The SPA serves at `/generate`, `/outputs`, etc. when web/dist/index.html
+    exists. The legacy Jinja tests in this file were written before the SPA
+    shipped; by tagging every GET with `HX-Request` we tell the server
+    that this is an HTMX-driven partial request and the SPA fallback is
+    skipped, returning the Jinja HTML the assertions target.
+
+    POST/PATCH/DELETE routes keep their original behavior (no HX-Request)
+    so the 204/302 contracts the tests assert are preserved.
+    """
+    c = app.test_client()
+
+    def _hx_get(url, **kw):
+        headers = kw.pop("headers", {}) or {}
+        headers.setdefault("HX-Request", "true")
+        return c.get(url, headers=headers, **kw)
+
+    class HxClient:
+        def get(self, url, **kw):
+            return _hx_get(url, **kw)
+
+        def post(self, url, **kw):
+            return c.post(url, **kw)
+
+        def patch(self, url, **kw):
+            return c.patch(url, **kw)
+
+        def put(self, url, **kw):
+            return c.put(url, **kw)
+
+        def delete(self, url, **kw):
+            return c.delete(url, **kw)
+
+    return HxClient()
 
 
 @pytest.fixture
@@ -83,10 +117,15 @@ class TestHealth:
 # ---------- home ----------
 
 class TestHome:
-    def test_homepage_redirects_to_generate(self, client):
+    def test_homepage_serves_spa_or_redirects(self, client):
+        """With web/dist/ built, `/` serves the SPA bundle (200, HTML).
+        Without it, the legacy redirect kicks in (302 → /generate)."""
         resp = client.get("/")
-        assert resp.status_code in (301, 302, 308)
-        assert "/generate" in resp.headers["Location"]
+        if resp.status_code in (301, 302, 308):
+            assert "/generate" in resp.headers["Location"]
+        else:
+            assert resp.status_code == 200
+            assert b"<!doctype html>" in resp.data.lower() or b"<html" in resp.data.lower()
 
 
 # ---------- generate page ----------

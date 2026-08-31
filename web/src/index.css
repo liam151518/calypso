@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Calypso Operate-mode tokens — derived from app/static/app.css.
+   All values in HSL so Tailwind's `hsl(var(--token))` pattern works. */
+@layer base {
+  :root {
+    /* Surfaces */
+    --background: 240 6% 6%;          /* #0d0d10 */
+    --foreground: 36 27% 92%;         /* #f0ece4 */
+
+    --card: 240 5% 10%;               /* #15151a */
+    --card-foreground: 36 27% 92%;
+
+    --popover: 240 5% 12%;            /* #1a1a20 */
+    --popover-foreground: 36 27% 92%;
+
+    --secondary: 240 4% 14%;          /* #1d1d22 */
+    --secondary-foreground: 36 27% 92%;
+
+    --muted: 240 4% 16%;              /* #26262c */
+    --muted-foreground: 36 8% 53%;    /* #8b8780 */
+
+    --accent: 240 4% 18%;
+    --accent-foreground: 36 27% 92%;
+
+    /* The single chromatic accent — signal-orange. */
+    --primary: 18 100% 56%;           /* #ff6a1f */
+    --primary-foreground: 240 6% 6%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 36 27% 92%;
+
+    --border: 240 4% 18%;             /* #2a2a32 */
+    --input: 240 4% 18%;
+    --ring: 18 100% 56%;
+
+    --ok: 142 50% 45%;
+    --warn: 38 92% 55%;
+    --err: 0 70% 55%;
+
+    --radius: 0.5rem;
+
+    --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  ::selection {
+    background-color: hsl(var(--primary) / 0.35);
+    color: hsl(var(--foreground));
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted));
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+/* shadcn-style utility for visually-hidden but screen-reader accessible text. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
