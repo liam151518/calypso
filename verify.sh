@@ -145,8 +145,8 @@ section "5. Tests"
 
 if [[ -d tests ]] && compgen -G "tests/test_*.py" > /dev/null; then
   if command -v python3 >/dev/null 2>&1 && python3 -c "import pytest" 2>/dev/null; then
-    if python3 -m pytest tests/ ui/tests/ -q --tb=no 2>&1 | tail -5; then
-      pass "pytest suite ran (tests/ + ui/tests/)"
+    if python3 -m pytest tests/ -q --tb=no 2>&1 | tail -5; then
+      pass "pytest suite ran (tests/)"
     else
       fail "pytest suite had failures"
     fi
@@ -289,6 +289,54 @@ for f in packet/ plan/ slices/ agent-control/ adam/context/ adam/memory/; do
   else fail "missing Adam folder contract: $f"
   fi
 done
+
+# ============================================================
+# Section 11 — Flask web UI (app/)
+# ============================================================
+section "11. Flask web UI"
+
+if [[ -f app/server.py ]]; then
+  pass "app/server.py exists"
+else
+  fail "app/server.py missing — the Flask app is gone"
+fi
+
+if [[ -f app/requirements.txt ]]; then
+  pass "app/requirements.txt exists"
+  if grep -qE '^flask' app/requirements.txt; then
+    pass "flask pinned in app/requirements.txt"
+  else
+    fail "flask not in app/requirements.txt"
+  fi
+else
+  fail "app/requirements.txt missing"
+fi
+
+for tpl in base.html generate.html references.html outputs.html settings.html job_status.html 404.html; do
+  if [[ -f "app/templates/$tpl" ]]; then pass "template: $tpl"
+  else fail "missing template: app/templates/$tpl"
+  fi
+done
+
+for asset in app.css htmx.min.js; do
+  if [[ -f "app/static/$asset" ]]; then pass "static asset: $asset"
+  else fail "missing static asset: app/static/$asset"
+  fi
+done
+
+if [[ -x run.sh ]]; then
+  pass "run.sh is executable"
+else
+  fail "run.sh is not executable (chmod +x run.sh)"
+fi
+
+# Make sure no leftover Next.js / FastAPI cruft
+if [[ -d ui ]]; then
+  fail "ui/ directory still exists — should have been removed in favor of app/"
+fi
+if [[ -f package.json ]]; then
+  fail "root package.json still exists — npm should be gone"
+fi
 
 # ============================================================
 # Summary

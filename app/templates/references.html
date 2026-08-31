@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}References{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>References</h1>
+  <p class="hero-sub">Upload images or short clips to anchor your generations. These are local files only.</p>
+</section>
+
+<form action="{{ url_for('references_upload') }}" method="post" enctype="multipart/form-data" class="card">
+  <div class="field">
+    <label for="file">Upload a reference</label>
+    <input type="file" id="file" name="file" accept=".png,.jpg,.jpeg,.webp,.mp4,.mov,.webm" required>
+    <div class="hint">PNG, JPG, WEBP, MP4, MOV, or WEBM. Max 100 MB.</div>
+  </div>
+  <div class="actions">
+    <button type="submit" class="btn btn-primary">Upload</button>
+  </div>
+</form>
+
+<section class="grid-section">
+  <h2>Library ({{ items|length }})</h2>
+  {% if not items %}
+    <p class="empty">No references yet. Upload one above.</p>
+  {% else %}
+    <div class="ref-grid">
+      {% for r in items %}
+        <div class="ref-card">
+          {% if r.ext in ['mp4', 'mov', 'webm'] %}
+            <video src="{{ r.rel_url }}" muted preload="metadata" class="ref-preview"></video>
+          {% else %}
+            <img src="{{ r.rel_url }}" alt="{{ r.name }}" class="ref-preview">
+          {% endif %}
+          <div class="ref-meta">
+            <div class="ref-name" title="{{ r.name }}">{{ r.name }}</div>
+            <div class="ref-info">{{ r.ext|upper }} · {{ r.size_kb }} KB</div>
+          </div>
+          <form action="{{ url_for('references_delete', id=r.id) }}" method="post" class="ref-delete-form"
+                onsubmit="return confirm('Delete {{ r.name }}?');">
+            <button type="submit" class="btn btn-small btn-danger">Delete</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

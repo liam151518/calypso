@@ -1,0 +1,175 @@
+"""app/jobs.py — in-process job tracker for video generation.
+
+Each generation request becomes a `Job` with an id, status, output path, and
+metadata. The Flask server kicks off work in a background thread and exposes
+the job to the UI via GET /generate/<job_id>/status (HTMX-pollable).
+
+This module is deliberately small — no broker, no Redis. The process is a
+desktop app, and losing jobs on restart is acceptable.
+
+Used by: app/server.py (Generate routes).
+"""
+
+from __future__ import annotations
+
+import threading
+import time
+import traceback
+import urllib.request
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from scripts.falai_client import FalError
+from scripts.generate import ENV_PATH as GENERATE_ENV_PATH
+from scripts.generate import generate as run_generate
+from scripts.h3_client import H3Error
+
+
+# Project root mirrors scripts/generate.py: outputs live in outputs/<timestamp>/video.mp4
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+OUTPUTS_DIR = PROJECT_ROOT / "outputs"
+
+VALID_MODELS = ("auto", "h3-cloud", "h3-max", "kling")
+VALID_RESOLUTIONS = ("480p", "768p", "1080p")
+
+
+@dataclass
+class Job:
+    """A single generation request, tracked by id."""
+
+    job_id: str
+    status: str = "queued"  # queued | running | succeeded | failed
+    prompt: str = ""
+    model: str = "auto"
+    reference: str | None = None
+    duration: int = 8
+    resolution: str = "768p"
+    output_path: str | None = None
+    cost_usd: float | None = None
+    elapsed_seconds: float | None = None
+    error: str | None = None
+    error_trace: str | None = None
+    created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def touch(self) -> None:
+        self.updated_at = time.time()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialisable view (used by both JSON endpoints and template rendering)."""
+        return {
+            "job_id": self.job_id,
+            "status": self.status,
+            "prompt": self.prompt,
+            "model": self.model,
+            "reference": self.reference,
+            "duration": self.duration,
+            "resolution": self.resolution,
+            "output_path": self.output_path,
+            "cost_usd": self.cost_usd,
+            "elapsed_seconds": self.elapsed_seconds,
+            "error": self.error,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
+# Module-level registry. Thread-safe via Job._lock for individual jobs.
+_JOBS: dict[str, Job] = {}
+_JOBS_LOCK = threading.Lock()
+
+
+def make_job_id() -> str:
+    """Generate a short, unique job id (timestamp + microseconds, base36)."""
+    return time.strftime("%Y%m%d-%H%M%S-") + f"{time.time_ns() % 1_000_000:06d}"
+
+
+def create_job(
+    prompt: str,
+    *,
+    model: str = "auto",
+    reference: str | None = None,
+    duration: int = 8,
+    resolution: str = "768p",
+) -> Job:
+    """Create and store a new Job in the 'queued' state."""
+    job = Job(
+        job_id=make_job_id(),
+        prompt=prompt,
+        model=model,
+        reference=reference,
+        duration=duration,
+        resolution=resolution,
+    )
+    with _JOBS_LOCK:
+        _JOBS[job.job_id] = job
+    return job
+
+
+def get_job(job_id: str) -> Job | None:
+    with _JOBS_LOCK:
+        return _JOBS.get(job_id)
+
+
+def list_jobs(limit: int = 50) -> list[Job]:
+    """Most recent jobs first."""
+    with _JOBS_LOCK:
+        jobs = sorted(_JOBS.values(), key=lambda j: j.created_at, reverse=True)
+    return jobs[:limit]
+
+
+def run_job(job: Job) -> None:
+    """Execute the generation in the current thread. Called via threading.Thread."""
+    with job._lock:
+        job.status = "running"
+        job.touch()
+
+    try:
+        result = run_generate(
+            job.prompt,
+            model=job.model,
+            reference=job.reference,
+            duration=job.duration,
+            resolution=job.resolution,
+            output_dir=OUTPUTS_DIR / job.job_id,
+        )
+        with job._lock:
+            job.status = "succeeded"
+            job.output_path = str(result.output_path)
+            job.cost_usd = result.cost_usd
+            job.elapsed_seconds = result.elapsed_seconds
+            job.touch()
+    except (FalError, H3Error) as exc:
+        with job._lock:
+            job.status = "failed"
+            job.error = str(exc)
+            job.error_trace = traceback.format_exc()
+            job.touch()
+    except SystemExit as exc:
+        # generate.py raises SystemExit for user/input errors (no keys, etc.)
+        # Convert to a regular Job failure so the UI can show the message.
+        with job._lock:
+            job.status = "failed"
+            job.error = f"Input error: {exc.code}"
+            job.error_trace = None
+            job.touch()
+    except Exception as exc:  # noqa: BLE001 — broad catch so background thread never dies silently
+        with job._lock:
+            job.status = "failed"
+            job.error = str(exc)
+            job.error_trace = traceback.format_exc()
+            job.touch()
+
+
+def start_job(job: Job) -> threading.Thread:
+    """Spawn a background thread to run the job. Returns the Thread handle."""
+    thread = threading.Thread(target=run_job, args=(job,), daemon=True, name=f"job-{job.job_id}")
+    thread.start()
+    return thread
+
+
+def safe_urlretrieve(url: str, dest: Path) -> None:
+    """Helper for tests — equivalent to urllib.request.urlretrieve but mockable."""
+    urllib.request.urlretrieve(url, dest)

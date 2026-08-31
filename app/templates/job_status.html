@@ -1,0 +1,33 @@
+{# HTMX-polled partial. Returned by GET /generate/<id>/status every 2s. #}
+{% set j = job %}
+<div class="job-card status-{{ j.status }}">
+  <div class="job-card-head">
+    <span class="status-dot status-{{ j.status }}"></span>
+    <strong>{{ j.status|upper }}</strong>
+    <code class="job-id">{{ j.job_id }}</code>
+  </div>
+
+  <div class="job-card-body">
+    <div class="job-prompt-line">{{ j.prompt }}</div>
+    <div class="job-meta-line">{{ j.model }} · {{ j.duration }}s · {{ j.resolution }}</div>
+
+    {% if j.status == 'succeeded' %}
+      <video controls preload="metadata" src="{{ url_for('outputs_video', ts=j.job_id) }}" class="job-video"></video>
+      <div class="job-stats">
+        <span>${{ '%.2f' % (j.cost_usd or 0) }}</span>
+        <span>·</span>
+        <span>{{ '%.1f' % (j.elapsed_seconds or 0) }}s</span>
+        <a href="{{ url_for('outputs_video', ts=j.job_id) }}" download class="btn btn-small">Download</a>
+      </div>
+    {% elif j.status == 'failed' %}
+      <div class="job-error">
+        <strong>Error:</strong> {{ j.error }}
+      </div>
+    {% elif j.status in ('queued', 'running') %}
+      <div class="job-progress">
+        <div class="progress-bar"><div class="progress-fill"></div></div>
+        <div class="hint">Polling every 2s…</div>
+      </div>
+    {% endif %}
+  </div>
+</div>

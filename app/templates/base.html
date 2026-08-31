@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Calypso{% endblock %} · Calypso</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <script src="{{ url_for('static', filename='htmx.min.js') }}" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">⚔</div>
+      <div class="brand-text">
+        <div class="brand-name">Calypso</div>
+        <div class="brand-tag">local-first ad studio</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="{{ url_for('generate_page') }}" class="{% if request.endpoint == 'generate_page' %}active{% endif %}">
+        <span class="nav-icon">▶</span> Generate
+      </a>
+      <a href="{{ url_for('outputs_page') }}" class="{% if request.endpoint == 'outputs_page' %}active{% endif %}">
+        <span class="nav-icon">▣</span> Outputs
+      </a>
+      <a href="{{ url_for('references_page') }}" class="{% if request.endpoint == 'references_page' %}active{% endif %}">
+        <span class="nav-icon">◆</span> References
+      </a>
+      <a href="{{ url_for('settings_page') }}" class="{% if request.endpoint == 'settings_page' %}active{% endif %}">
+        <span class="nav-icon">⚙</span> Settings
+      </a>
+    </nav>
+    <div class="sidebar-foot">
+      <div id="backend-status" hx-get="{{ url_for('health') }}" hx-trigger="load, every 30s" hx-swap="innerHTML">
+        <span class="status-dot status-loading"></span> checking…
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for category, msg in messages %}
+            <div class="flash flash-{{ category }}">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

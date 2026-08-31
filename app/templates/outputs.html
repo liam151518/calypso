@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Outputs{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Outputs</h1>
+  <p class="hero-sub">Every generation is saved to <code>outputs/&lt;timestamp&gt;/video.mp4</code>.</p>
+</section>
+
+{% if not items %}
+  <div class="empty-state">
+    <p>No outputs yet. Generate one on the <a href="{{ url_for('generate_page') }}">Generate</a> page.</p>
+  </div>
+{% else %}
+  <div class="output-grid">
+    {% for o in items %}
+      <div class="output-card">
+        <video src="{{ o.rel_url }}" controls preload="metadata" class="output-video"></video>
+        <div class="output-meta">
+          <div class="output-id"><code>{{ o.id }}</code></div>
+          <div class="output-info">{{ o.size_mb }} MB</div>
+        </div>
+        <a href="{{ o.rel_url }}" download class="btn btn-small">Download</a>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

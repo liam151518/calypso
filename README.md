@@ -14,11 +14,60 @@ The brain that designs and manages this whole thing is **Adam** (The Adam Repo),
 
 ---
 
-## Quick start (in this order)
+## Run it locally (the dashboard)
+
+There's a Flask + Jinja + HTMX web UI under `app/`. One command to start it:
+
+```bash
+git clone https://github.com/liam151518/calypso.git
+cd calypso
+bash run.sh
+```
+
+Opens <http://localhost:8765>. (Override with `CALYPSO_PORT=9000 bash run.sh` if 8765 is taken.)
+
+What you can do from the browser:
+
+1. **Settings** — paste your `FAL_API_KEY` (and optionally `MINIMAX_API_KEY`). They go into the local `.env`.
+2. **References** — upload any images or clips you want as style anchors. Stored locally under `references/uploads/`.
+3. **Generate** — type a prompt, optionally pick a reference, hit Generate. The job runs in a background thread; the UI polls every 2 s. When it's done, the video plays inline.
+4. **Outputs** — gallery of every generated video, with download links.
+
+No npm. No Docker. No cloud. Just Python.
+
+---
+
+## Quick start (pipeline build, not the dashboard)
+
+If you want to *build out* the pipeline (not just use it):
 
 1. **Read `docs/PHASE_0.md`** — installs Adam + Agent-Reach into Cursor (~30 min)
 2. **Read `docs/PHASE_1.md`** — sets up the rest of the foundation (~1 week)
 3. From Phase 2 onward, you just talk to Adam in Cursor — it drives everything else
+
+The dashboard (above) is the *runtime* — once the pipeline is built, you use the dashboard to actually generate content.
+
+---
+
+## CLI usage (alternative to the dashboard)
+
+If you'd rather not use the browser:
+
+```bash
+# Check your keys
+python3 scripts/generate.py --check-keys
+
+# Generate a video
+python3 scripts/generate.py "damascus cabinet reveal, cinematic, 4K"
+
+# Pick a reference from Folder A automatically
+python3 scripts/generate.py --model h3-max "summer drop teaser"
+
+# Use a specific reference file
+python3 scripts/generate.py --reference ~/Downloads/damascus.png "spin the cabinet"
+```
+
+The CLI does the same routing as the dashboard — it just doesn't have a UI.
 
 ---
 
@@ -39,6 +88,7 @@ These are non-negotiable:
 Content Pipeline/
 ├── README.md                      # this file
 ├── .gitignore
+├── run.sh                         # one-command launcher for the Flask UI
 ├── verify.sh                      # the single hard gate (Adam re-runs before merge)
 ├── packet/                        # YOUR product brief (you + Adam write it, never touched by builders)
 ├── plan/                          # Adam's plans + ADRs
@@ -48,10 +98,11 @@ Content Pipeline/
 │   └── memory/                    # decisions, handoffs, research dumps
 ├── agent-control/                 # durable orchestrator state across sessions
 ├── brand/                         # Folder B — Gatcha Kingdom identity
-├── references/                    # Folder A — what works (inbox / ready / archived)
+├── references/                    # Folder A — what works (inbox / ready / archived / uploads)
 ├── workflows/                     # n8n workflow JSON exports
 ├── comfyui/                       # ComfyUI workflow JSON + H3 native node templates
-├── scripts/                       # reference picker, post-process, scrapers
+├── scripts/                       # reference picker, post-process, scrapers, generate.py (CLI)
+├── app/                           # Flask web UI (server.py, templates/, static/)
 ├── tests/                         # tests-first contracts
 └── docs/                          # the runbooks you read
 ```
@@ -86,36 +137,24 @@ Content Pipeline/
 - [x] **Phase 3** — video pipeline (MiniMax H3 primary)
 - [x] **Phase 4** — optimization (council review, local H3 benchmark, Brand LoRA)
 - [x] **Phase 5** — scale + handoff prep
-- [x] **UI** — Next.js 14 dashboard at `ui/` (Overview, Phases, Scripts, Brand, Workflows, Tests, Accounts, Adam)
+- [x] **Dashboard UI** — Flask + Jinja + HTMX at `app/`, launched by `bash run.sh`
 
 See `/Users/liamsantos/.cursor/plans/gachakingdoms_ad_pipeline_plan_ca486772.plan.md` for the full plan this repo implements.
 
 ---
 
-## Local dashboard UI
+## Verify
 
-There's a Next.js 14 dashboard at `ui/` that surfaces the whole project.
+Run the hard gate (everything passes):
 
 ```bash
-cd ui
-npm install                  # one-time (already done if you've run the scaffold)
-npm run dev:all              # starts backend (8765) + frontend (3001) together
-# or run them separately:
-npm run backend              # FastAPI on :8765
-npm run dev                  # Next.js on :3001
+bash verify.sh
 ```
 
-Open <http://localhost:3001>.
+Run the test suite:
 
-Pages:
+```bash
+python3 -m pytest tests/ -v
+```
 
-- **Overview** — counts (tests, scripts, workflows, brand files), gate status
-- **Phases** — six-phase rollout status with deliverables per phase
-- **Scripts** — every script with `--help` and a click-to-run UI
-- **Brand Pack** — Folder B files with live previews
-- **Workflows** — n8n + ComfyUI workflows with node/trigger counts
-- **Tests** — pytest breakdown by file; one-click "run all tests"
-- **Accounts** — required third-party accounts and which env vars are set
-- **Adam** — Adam skill install state (user + project level) and context files
-
-The backend (`ui/server/app.py`) wraps every script so the UI can run them, plus the verify gate, plus account/brand/workflow/test inspection.
+Currently **254 tests pass** across 13 test files.

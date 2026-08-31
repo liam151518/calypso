@@ -18,6 +18,8 @@ references/raw/
 comfyui/output/
 comfyui/input/temp/
 workflows/runtime/
+outputs/
+references/uploads/
 
 # Python
 __pycache__/
@@ -29,7 +31,7 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
-# Node
+# Node (kept defensive — not used but harmless if accidentally installed)
 node_modules/
 .pnpm-store/
 .next/

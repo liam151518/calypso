@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Settings</h1>
+  <p class="hero-sub">API keys are stored locally in <code>.env</code>. They never leave your machine.</p>
+</section>
+
+<div class="card">
+  <table class="keys-table">
+    <thead>
+      <tr>
+        <th>Service</th>
+        <th>Env var</th>
+        <th>Status</th>
+        <th>Set / Update</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for k in keys %}
+        <tr>
+          <td>{{ k.service }}</td>
+          <td><code>{{ k.env_var }}</code></td>
+          <td>
+            {% if k.is_set %}
+              <span class="status-dot status-ok"></span> set
+              <span class="masked">({{ k.masked }})</span>
+            {% else %}
+              <span class="status-dot status-failed"></span> missing
+            {% endif %}
+          </td>
+          <td>
+            <form action="{{ url_for('settings_save', env_var=k.env_var) }}" method="post" class="key-form">
+              <input type="password" name="value" placeholder="{{ k.placeholder }}" autocomplete="off" required>
+              <button type="submit" class="btn btn-small btn-primary">Save</button>
+            </form>
+          </td>
+          <td>
+            {% if k.is_set %}
+              <form action="{{ url_for('settings_delete', env_var=k.env_var) }}" method="post"
+                    onsubmit="return confirm('Delete {{ k.env_var }}?');">
+                <button type="submit" class="btn btn-small btn-danger">Delete</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<section class="hint-block">
+  <h3>Notes</h3>
+  <ul>
+    <li><strong>fal.ai</strong> — used by H3 Max and Kling models. Get one at <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener">fal.ai/dashboard/keys</a>.</li>
+    <li><strong>MiniMax (H3 cloud)</strong> — direct access to the H3 API. Optional.</li>
+    <li><strong>Telegram bot</strong> — optional, only needed if you wire up the Telegram notifier later.</li>
+  </ul>
+</section>
+{% endblock %}
