@@ -1,0 +1,172 @@
+{
+  "last_node_id": 12,
+  "last_link_id": 14,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "MiniMaxH3ReferenceToVideo",
+      "pos": {"x": 0, "y": 0},
+      "size": {"0": 350, "1": 280},
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.30.0",
+        "Node name for S&R": "MiniMaxH3ReferenceToVideo"
+      },
+      "widgets_values": [
+        "gacha capsule toy, Japanese capsule machine, neon-lit arcade, camera pushes in slowly, capsule cracks open, light burst on reveal, cinematic, dark_moody, neon_accents",
+        8,
+        "768p",
+        42,
+        "ref2va",
+        1.0
+      ],
+      "inputs": [
+        {"name": "reference_images", "type": "IMAGE", "link": 1},
+        {"name": "motion", "type": "STRING", "link": null}
+      ],
+      "outputs": [
+        {"name": "video_latent", "type": "LATENT", "links": [2], "slot_index": 0},
+        {"name": "audio_latent", "type": "LATENT", "links": [3], "slot_index": 1}
+      ],
+      "title": "MiniMax H3 Reference-to-Video"
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": {"x": -400, "y": -100},
+      "size": {"0": 315, "1": 314},
+      "properties": {"cnr_id": "comfy-core", "ver": "0.30.0"},
+      "widgets_values": [
+        "reference.png",
+        "image"
+      ],
+      "inputs": [],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [1], "slot_index": 0},
+        {"name": "MASK", "type": "MASK", "links": null, "slot_index": 1}
+      ],
+      "title": "Load Folder A Reference"
+    },
+    {
+      "id": 3,
+      "type": "EmptyMiniMaxH3LatentAV",
+      "pos": {"x": -400, "y": 250},
+      "size": {"0": 315, "1": 130},
+      "properties": {"cnr_id": "comfy-core", "ver": "0.30.0"},
+      "widgets_values": [
+        8,
+        768,
+        768,
+        1,
+        24
+      ],
+      "inputs": [],
+      "outputs": [
+        {"name": "video_latent", "type": "LATENT", "links": null, "slot_index": 0},
+        {"name": "audio_latent", "type": "LATENT", "links": null, "slot_index": 1}
+      ],
+      "title": "Empty H3 Latent (video + audio)"
+    },
+    {
+      "id": 4,
+      "type": "MiniMaxH3SigmaShift",
+      "pos": {"x": 400, "y": -200},
+      "size": {"0": 315, "1": 80},
+      "properties": {"cnr_id": "comfy-core", "ver": "0.30.0"},
+      "widgets_values": [
+        5.0
+      ],
+      "inputs": [
+        {"name": "video_latent", "type": "LATENT", "link": 2}
+      ],
+      "outputs": [
+        {"name": "video_latent", "type": "LATENT", "links": [4], "slot_index": 0}
+      ],
+      "title": "H3 Sigma Shift"
+    },
+    {
+      "id": 5,
+      "type": "VAEDecode",
+      "pos": {"x": 800, "y": -200},
+      "size": {"0": 210, "1": 46},
+      "properties": {"cnr_id": "comfy-core", "ver": "0.30.0"},
+      "widgets_values": [],
+      "inputs": [
+        {"name": "samples", "type": "LATENT", "link": 4},
+        {"name": "vae", "type": "VAE", "link": 5}
+      ],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [6], "slot_index": 0}
+      ],
+      "title": "VAE Decode (video frames)"
+    },
+    {
+      "id": 6,
+      "type": "CheckpointLoaderSimple",
+      "pos": {"x": 400, "y": 200},
+      "size": {"0": 315, "1": 98},
+      "properties": {"cnr_id": "comfy-core", "ver": "0.30.0"},
+      "widgets_values": [
+        "MiniMaxH3VAE.safetensors"
+      ],
+      "inputs": [],
+      "outputs": [
+        {"name": "MODEL", "type": "MODEL", "links": null, "slot_index": 0},
+        {"name": "CLIP", "type": "CLIP", "links": null, "slot_index": 1},
+        {"name": "VAE", "type": "VAE", "links": [5], "slot_index": 2}
+      ],
+      "title": "Load H3 VAE"
+    },
+    {
+      "id": 7,
+      "type": "SaveVideo",
+      "pos": {"x": 1100, "y": -200},
+      "size": {"0": 315, "1": 250},
+      "properties": {"cnr_id": "comfy-core", "ver": "0.30.0"},
+      "widgets_values": [
+        "h3-output",
+        "mp4",
+        24,
+        "ffmpeg",
+        true,
+        true
+      ],
+      "inputs": [
+        {"name": "video_frames", "type": "IMAGE", "link": 6}
+      ],
+      "outputs": [],
+      "title": "Save Video (MP4 + native audio)"
+    }
+  ],
+  "links": [
+    [1, 2, 0, 1, 0, "IMAGE"],
+    [2, 1, 0, 4, 0, "LATENT"],
+    [3, 1, 1, 5, 1, "LATENT"],
+    [4, 4, 0, 5, 0, "LATENT"],
+    [5, 6, 2, 5, 1, "VAE"],
+    [6, 5, 0, 7, 0, "IMAGE"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {"scale": 1, "offset": [0, 0]},
+    "info": {
+      "name": "GatchaKingdom H3 Reference-to-Video (Local Benchmark)",
+      "author": "GatchaKingdom Pipeline",
+      "description": "Local MiniMax H3 reference-to-video template using ComfyUI 0.30+ native nodes. Used for Phase 4 local benchmark on the RTX 5070. The 33B H3 Omni Transformer is too large for 12 GB VRAM at full BF16 — this template is the harness for testing quantized variants.",
+      "version": "1.0.0"
+    }
+  },
+  "version": 0.4,
+  "metadata": {
+    "models_needed": [
+      "MiniMax-H3 (full or quantized)",
+      "MiniMaxH3VAE.safetensors"
+    ],
+    "vram_estimate_gb_full_bf16": 24,
+    "vram_estimate_gb_int8": 14,
+    "vram_estimate_gb_int4": 8,
+    "expected_runtime_seconds_5s_768p": "TBD (Phase 4 benchmark)",
+    "phase": "4 — local H3 benchmark only"
+  }
+}

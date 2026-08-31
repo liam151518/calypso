@@ -1,0 +1,195 @@
+{
+  "name": "video-generation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 13 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-video",
+      "name": "Cron (13:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "command": "python -m scripts.reference_picker --format video --seed {{$now.seconds}}"
+      },
+      "id": "ref-picker-video",
+      "name": "Reference Picker (video)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "command": "python -m scripts.prompt_builder --reference /tmp/ref.json --motion --seed {{$now.seconds}}"
+      },
+      "id": "prompt-builder-video",
+      "name": "Prompt Builder (with motion)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "command": "python -c \"from scripts.generation_router import GenerationRouter, SpendState; import json, sys; router = GenerationRouter(); decision = router.route(duration_seconds=8, resolution='768p', is_hero={{$json.is_hero or 'False'}}); print(json.dumps({'backend': decision.backend, 'tier': decision.tier, 'estimated_cost_usd': decision.estimated_cost_usd}))\""
+      },
+      "id": "router",
+      "name": "Generation Router",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "command": "python -c \"\nimport json, sys\nfrom scripts.h3_client import H3Client, VideoRequest\nfrom pathlib import Path\n\nreq = VideoRequest(prompt='{{$json.positive}}', motion='{{$json.motion}}', duration_seconds=8, resolution='768p')\ntask_id = H3Client().submit_generation(req)\nprint(json.dumps({'task_id': task_id}))\n\""
+      },
+      "id": "h3-submit",
+      "name": "MiniMax H3 Submit",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "command": "python -c \"\nfrom scripts.h3_client import H3Client\nfrom pathlib import Path\nclient = H3Client(max_poll_seconds=600, poll_interval=10)\nclient.download_result('{{$json.task_id}}', Path('/tmp/video.mp4'))\nprint('done')\n\""
+      },
+      "id": "h3-wait-download",
+      "name": "H3 Wait + Download",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "command": "python -c \"\nfrom scripts.telegram_notify import get_notifier, ApprovalRequest\nfrom pathlib import Path\nreq = ApprovalRequest(image_path=Path('/tmp/poster.jpg'), video_path=Path('/tmp/video.mp4'), caption='{{$json.caption}}', post_id='vid-{{$now.seconds}}')\nget_notifier().send_approval_request(req)\nprint('sent')\n\""
+      },
+      "id": "telegram-video-approve",
+      "name": "Telegram Approval (Video)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "command": "python -c \"\nfrom scripts.generation_router import GenerationRouter\nfrom scripts.generation_router import RoutingDecision\nimport json, sys\ndecision_data = json.loads('{{$json.router_decision}}')\ndecision = RoutingDecision(backend=decision_data['backend'], tier=decision_data['tier'], estimated_cost_usd=decision_data['estimated_cost_usd'], reason='')\nGenerationRouter().record_spend(decision)\nprint('recorded')\n\""
+      },
+      "id": "record-spend",
+      "name": "Record Spend",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    }
+  ],
+  "connections": {
+    "Cron (13:00)": {
+      "main": [
+        [
+          {
+            "node": "Reference Picker (video)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reference Picker (video)": {
+      "main": [
+        [
+          {
+            "node": "Prompt Builder (with motion)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt Builder (with motion)": {
+      "main": [
+        [
+          {
+            "node": "Generation Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generation Router": {
+      "main": [
+        [
+          {
+            "node": "MiniMax H3 Submit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MiniMax H3 Submit": {
+      "main": [
+        [
+          {
+            "node": "H3 Wait + Download",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "H3 Wait + Download": {
+      "main": [
+        [
+          {
+            "node": "Telegram Approval (Video)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Approval (Video)": {
+      "main": [
+        [
+          {
+            "node": "Record Spend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "timezone": "Africa/Johannesburg"
+  },
+  "staticData": null,
+  "tags": [
+    {"name": "pipeline", "id": "tag-pipeline"},
+    {"name": "video", "id": "tag-video"}
+  ],
+  "active": false,
+  "versionId": "1.0.0",
+  "id": "workflow-video-generation",
+  "meta": {
+    "description": "Cron-driven video generation: pick a Folder A video reference → build prompt with motion → route via cost-aware router → MiniMax H3 cloud primary → post-process → Telegram approval. Runs daily at 13:00 SAST.",
+    "importNotes": [
+      "Set MINIMAX_API_TOKEN, FAL_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID in .env before activating",
+      "MiniMax H3 is the primary path. Hero tier (Kling) only fires when explicitly flagged.",
+      "Cost cap defaults to $30/mo. Adjust via MONTHLY_COST_CAP_USD in .env.",
+      "Test with the Run Once button before activating the schedule"
+    ]
+  }
+}

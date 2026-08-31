@@ -1,0 +1,61 @@
+# n8n + Social Stats — Docker Compose for the Windows PC
+#
+# Run from C:\n8n-data\ on the Windows PC:
+#   mkdir C:\n8n-data
+#   cd C:\n8n-data
+#   # Copy this file to docker-compose.yml in that directory
+#   docker compose up -d
+#
+# After up:
+#   n8n:                http://localhost:5678  (admin / changeme)
+#   social-stats:       http://localhost:3000
+#
+# Volumes persist on the host so data survives container restarts.
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - GENERIC_TIMEZONE=${TZ:-Africa/Johannesburg}
+      - TZ=${TZ:-Africa/Johannesburg}
+      # Webhook URL (set this to your tunneled URL when you have one)
+      - WEBHOOK_URL=http://localhost:5678/
+      # Database — SQLite for now, swap to Postgres for production
+      - DB_TYPE=sqlite
+      - DB_SQLITE_DATABASE=/home/node/.n8n/database.sqlite
+      # Encryption key — generate with: openssl rand -hex 32
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-please-change-me-with-openssl-rand-hex-32}
+      # Disable telemetry
+      - N8N_TELEMETRY_DISABLED=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+    # Mount the workflows folder so you can edit JSON directly
+      - ${HOST_WORKFLOWS_DIR:-./workflows}:/workflows:ro
+
+  social-stats:
+    image: ghcr.io/cbsshekhawat18/social-stats:latest
+    container_name: social-stats
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/data/social-stats.sqlite
+      - TZ=${TZ:-Africa/Johannesburg}
+      # Platform credentials (read from .env on host)
+      - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
+      - META_ACCESS_TOKEN=${META_ACCESS_TOKEN:-}
+      - TIKTOK_ACCESS_TOKEN=${TIKTOK_ACCESS_TOKEN:-}
+    volumes:
+      - social_stats_data:/data
+
+volumes:
+  n8n_data:
+  social_stats_data:

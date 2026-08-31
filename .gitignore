@@ -1,0 +1,78 @@
+# Adam-managed artifacts (see plan)
+packet/private/
+agent-control/*.local.*
+
+# Brand pack: Folder B is sensitive
+brand/screenshots/private/
+brand/fonts/private/
+
+# Folder A: heavy media + scraped content
+references/inbox/*.tmp
+references/raw/
+*.mp4
+*.mov
+*.webm
+*.gif
+
+# Generated images/videos (rebuildable)
+comfyui/output/
+comfyui/input/temp/
+workflows/runtime/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.pnpm-store/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env / secrets (never commit)
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+secrets/
+config/credentials.*
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# n8n
+n8n/data/
+n8n/.n8n/
+
+# Social Stats
+social-stats/data/
+social-stats/.env
+
+# ComfyUI models (large, license-restricted — install separately)
+comfyui/models/
+!comfyui/models/.gitkeep
+
+# Reference backups
+references/backup/
+
+# Logs
+logs/
+*.log
+
+# OS temp
+tmp/
+temp/

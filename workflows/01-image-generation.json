@@ -1,0 +1,219 @@
+{
+  "name": "image-generation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 12 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-noon",
+      "name": "Cron (12:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-evening",
+      "name": "Cron (18:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "command": "python -m scripts.reference_picker --format image --seed {{$now.seconds}}"
+      },
+      "id": "ref-picker",
+      "name": "Reference Picker",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "command": "python -m scripts.prompt_builder --reference /tmp/ref.json --seed {{$now.seconds}}"
+      },
+      "id": "prompt-builder",
+      "name": "Prompt Builder",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8188/prompt",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"prompt\": {\n    \"3\": {\n      \"class_type\": \"KSampler\",\n      \"inputs\": {\n        \"seed\": {{$now.millis}},\n        \"steps\": 30,\n        \"cfg\": 7.5,\n        \"sampler_name\": \"euler_ancestral\",\n        \"scheduler\": \"normal\",\n        \"denoise\": 1.0,\n        \"model\": [\"4\", 0],\n        \"positive\": [\"6\", 0],\n        \"negative\": [\"7\", 0],\n        \"latent_image\": [\"5\", 0]\n      }\n    },\n    \"6\": {\"class_type\": \"CLIPTextEncode\", \"inputs\": {\"text\": \"{{$json.positive}}\", \"clip\": [\"4\", 1]}},\n    \"7\": {\"class_type\": \"CLIPTextEncode\", \"inputs\": {\"text\": \"{{$json.negative}}\", \"clip\": [\"4\", 1]}},\n    \"4\": {\"class_type\": \"CheckpointLoaderSimple\", \"inputs\": {\"ckpt_name\": \"sd_xl_base_1.0.safetensors\"}},\n    \"5\": {\"class_type\": \"EmptyLatentImage\", \"inputs\": {\"width\": 1024, \"height\": 1024, \"batch_size\": 1}},\n    \"8\": {\"class_type\": \"VAEDecode\", \"inputs\": {\"samples\": [\"3\", 0], \"vae\": [\"4\", 2]}},\n    \"9\": {\"class_type\": \"SaveImage\", \"inputs\": {\"filename_prefix\": \"gacha\", \"images\": [\"8\", 0]}}\n  }\n}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "comfyui-submit",
+      "name": "ComfyUI Submit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8188/history/{{$json.prompt_id}}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "comfyui-poll",
+      "name": "ComfyUI Poll",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "command": "python -m scripts.post_process /tmp/comfyui-output.png /tmp/post-processed.jpg --caption '{{$json.caption}}'"
+      },
+      "id": "post-process",
+      "name": "Post-Process (watermark + caption)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "command": "python -c \"from scripts.telegram_notify import get_notifier, ApprovalRequest; from pathlib import Path; import json; post_id = f'img-{$now.seconds}'; msg_id = get_notifier().send_approval_request(ApprovalRequest(image_path=Path('/tmp/post-processed.jpg'), caption='{{$json.caption}}', post_id=post_id)); print(msg_id)\""
+      },
+      "id": "telegram-approve",
+      "name": "Telegram Approval Request",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1560, 400]
+    }
+  ],
+  "connections": {
+    "Cron (12:00)": {
+      "main": [
+        [
+          {
+            "node": "Reference Picker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron (18:00)": {
+      "main": [
+        [
+          {
+            "node": "Reference Picker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reference Picker": {
+      "main": [
+        [
+          {
+            "node": "Prompt Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt Builder": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI Submit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ComfyUI Submit": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI Poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ComfyUI Poll": {
+      "main": [
+        [
+          {
+            "node": "Post-Process (watermark + caption)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post-Process (watermark + caption)": {
+      "main": [
+        [
+          {
+            "node": "Telegram Approval Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "timezone": "Africa/Johannesburg"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "pipeline",
+      "id": "tag-pipeline"
+    },
+    {
+      "name": "image",
+      "id": "tag-image"
+    }
+  ],
+  "active": false,
+  "versionId": "1.0.0",
+  "id": "workflow-image-generation",
+  "meta": {
+    "description": "Cron-driven image generation: pick a Folder A reference → build prompt → generate on local ComfyUI → post-process → request Telegram approval. Runs twice daily (12:00 and 18:00 SAST). Imports into n8n via Settings → Workflows → Import.",
+    "importNotes": [
+      "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env before activating",
+      "Verify ComfyUI is running at http://127.0.0.1:8188",
+      "Adjust the cron expressions if you want different posting times",
+      "Test with the Run Once button before activating the schedule"
+    ]
+  }
+}
