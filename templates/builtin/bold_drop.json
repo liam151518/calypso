@@ -1,0 +1,104 @@
+{
+  "name": "Bold Drop",
+  "category": "announcement",
+  "aspect_ratio": "4:5",
+  "canvas": { "width": 1080, "height": 1350 },
+  "safe_zones": { "top": 8, "bottom": 16, "left": 6, "right": 6 },
+  "default_filter": "moody",
+  "brand_locks": ["logo_wm", "price_accent"],
+  "layers": [
+    {
+      "id": "bg",
+      "type": "ai_background",
+      "name": "Dark textured background",
+      "visible": true,
+      "locked": false,
+      "x": 0, "y": 0, "width": 100, "height": 100,
+      "opacity": 1.0,
+      "config": {
+        "prompt": "Dark concrete wall, moody atmosphere, cinematic lighting, {{brand.colors.primary}} neon light streaks, 35mm grain",
+        "negative_prompt": "bright, pastel, cartoon",
+        "model": "flux-pro/v1.1"
+      }
+    },
+    {
+      "id": "product",
+      "type": "product_cutout",
+      "name": "Hero product",
+      "visible": true,
+      "locked": false,
+      "x": 22, "y": 24, "width": 56, "height": 56,
+      "config": {
+        "slot": "center",
+        "auto_cutout": true,
+        "shadow": true,
+        "shadow_color": "#000000",
+        "shadow_blur": 32,
+        "shadow_offset_x": 0,
+        "shadow_offset_y": 18,
+        "max_width_percent": 56,
+        "max_height_percent": 56
+      }
+    },
+    {
+      "id": "headline",
+      "type": "text",
+      "name": "Headline",
+      "visible": true,
+      "locked": false,
+      "x": 6, "y": 10, "width": 88, "height": 12,
+      "config": {
+        "content": "{{brand.tagline}}",
+        "font_family": "Inter",
+        "font_size": 72,
+        "font_weight": "bold",
+        "color": "#ffffff",
+        "text_align": "center",
+        "text_transform": "uppercase",
+        "letter_spacing": 6,
+        "line_height": 1.05
+      }
+    },
+    {
+      "id": "price_accent",
+      "type": "shape",
+      "name": "Price accent block",
+      "visible": true,
+      "locked": true,
+      "x": 25, "y": 82, "width": 50, "height": 12,
+      "config": {
+        "shape_type": "rectangle",
+        "fill_color": "{{brand.colors.primary}}"
+      }
+    },
+    {
+      "id": "price",
+      "type": "text",
+      "name": "Price",
+      "visible": true,
+      "locked": false,
+      "x": 6, "y": 84, "width": 88, "height": 8,
+      "config": {
+        "content": "R{{product.price}}",
+        "font_family": "JetBrains Mono",
+        "font_size": 56,
+        "font_weight": "bold",
+        "color": "#0d0d10",
+        "text_align": "center"
+      }
+    },
+    {
+      "id": "logo_wm",
+      "type": "image",
+      "name": "Brand watermark",
+      "visible": true,
+      "locked": true,
+      "x": 4, "y": 92, "width": 14, "height": 6,
+      "opacity": 0.85,
+      "config": {
+        "src": "{{brand.logo}}",
+        "object_fit": "contain"
+      }
+    }
+  ]
+}

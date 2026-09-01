@@ -4,6 +4,7 @@ import type {
   Brand,
   CostEstimate,
   Draft,
+  FilterPreset,
   ImageJob,
   Job,
   KeyStatus,
@@ -11,6 +12,7 @@ import type {
   OutputItem,
   RefItem,
   RefTag,
+  Template,
 } from "@/lib/types";
 
 export const MOCK_REFS: RefItem[] = [
@@ -201,6 +203,90 @@ export const MOCK_IMAGE_JOBS: ImageJob[] = [
   },
 ];
 
+// ----- Phase B: editor + brand-poster mock data -----
+
+export const MOCK_TEMPLATES: Template[] = [
+  {
+    id: 1,
+    name: "Minimal Launch",
+    category: "launch",
+    aspect_ratio: "1:1",
+    canvas: { width: 1080, height: 1080 },
+    safe_zones: { top: 5, bottom: 5, left: 5, right: 5 },
+    layers: [
+      {
+        id: "bg-1",
+        type: "ai_background",
+        name: "Background",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        config: { prompt: "soft gradient backdrop" } as Template["layers"][number]["config"],
+      },
+      {
+        id: "title-1",
+        type: "text",
+        name: "Title",
+        x: 10,
+        y: 35,
+        width: 80,
+        height: 15,
+        config: {
+          content: "NOW LIVE",
+          color: "#111111",
+          font_size: 64,
+          font_family: "sans-serif",
+          text_align: "center",
+        } as Template["layers"][number]["config"],
+      },
+      {
+        id: "product-1",
+        type: "product_cutout",
+        name: "Product",
+        x: 25,
+        y: 50,
+        width: 50,
+        height: 35,
+        config: { slot: "center", shadow: true } as Template["layers"][number]["config"],
+      },
+    ],
+    brand_locks: ["palette"],
+    default_filter: "moody",
+    is_builtin: true,
+    is_custom: false,
+  },
+  {
+    id: 2,
+    name: "Bold Drop",
+    category: "launch",
+    aspect_ratio: "4:5",
+    canvas: { width: 1080, height: 1350 },
+    layers: [
+      {
+        id: "shape-1",
+        type: "shape",
+        name: "Accent bar",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 8,
+        config: { shape_type: "rectangle", fill_color: "#0a0a0c" } as Template["layers"][number]["config"],
+      },
+    ],
+    is_builtin: true,
+    is_custom: false,
+  },
+];
+
+export const MOCK_FILTERS: FilterPreset[] = [
+  { name: "moody", settings: { brightness: -0.2, contrast: 0.15, saturation: -0.1 } },
+  { name: "bright", settings: { brightness: 0.15, contrast: 0.05, saturation: 0.1 } },
+  { name: "vintage", settings: { brightness: -0.05, contrast: 0.1, saturation: -0.3 } },
+  { name: "minimal", settings: { brightness: 0.0, contrast: 0.0, saturation: -0.5 } },
+  { name: "neon", settings: { brightness: 0.0, contrast: 0.2, saturation: 0.4 } },
+];
+
 /**
  * Build a query-hook mock factory you can spread into a `vi.mock("@/lib/query", ...)`.
  * Each hook returns a stable shape so React components render predictably.
@@ -247,5 +333,22 @@ export function buildQueryMock() {
     useImageJob: () => ({ data: MOCK_IMAGE_JOBS[0], isLoading: false }),
     useGenerateImage: () => ({ mutate: vi.fn(), isPending: false }),
     useImageOutputs: () => ({ data: [], isLoading: false }),
+    // ----- Phase B: editor + brand-poster hooks -----
+    useTemplates: () => ({ data: { templates: MOCK_TEMPLATES, aspect_ratios: ["1:1","4:5","9:16","16:9"], layer_types: ["text","image","shape"] }, isLoading: false }),
+    useTemplate: () => ({ data: MOCK_TEMPLATES[0], isLoading: false }),
+    useCreateTemplate: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    useUpdateTemplate: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    useDeleteTemplate: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    useDuplicateTemplate: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    useBootBuiltins: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    useProducts: () => ({ data: { products: [] }, isLoading: false }),
+    useProduct: () => ({ data: null, isLoading: false }),
+    useCreateProduct: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    useDeleteProduct: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    useImportProducts: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    useCutout: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    useFilters: () => ({ data: { presets: MOCK_FILTERS, user: [] }, isLoading: false }),
+    useRender: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    useRenderBatch: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   };
 }

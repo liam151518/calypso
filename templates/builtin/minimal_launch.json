@@ -1,0 +1,91 @@
+{
+  "name": "Minimal Launch",
+  "category": "product",
+  "aspect_ratio": "4:5",
+  "canvas": { "width": 1080, "height": 1350 },
+  "safe_zones": { "top": 8, "bottom": 18, "left": 6, "right": 6 },
+  "default_filter": "minimal",
+  "brand_locks": ["logo_wm"],
+  "layers": [
+    {
+      "id": "bg",
+      "type": "ai_background",
+      "name": "Studio background",
+      "visible": true,
+      "locked": false,
+      "x": 0, "y": 0, "width": 100, "height": 100,
+      "opacity": 1.0,
+      "config": {
+        "prompt": "Clean neutral studio backdrop, soft warm light, 35mm photography, {{brand.colors.primary}} accent",
+        "negative_prompt": "text, watermark, busy, cluttered",
+        "model": "flux-pro/v1.1"
+      }
+    },
+    {
+      "id": "product",
+      "type": "product_cutout",
+      "name": "Hero product",
+      "visible": true,
+      "locked": false,
+      "x": 25, "y": 22, "width": 50, "height": 50,
+      "config": {
+        "slot": "center",
+        "auto_cutout": true,
+        "shadow": true,
+        "shadow_color": "#000000",
+        "shadow_blur": 28,
+        "shadow_offset_x": 0,
+        "shadow_offset_y": 12,
+        "max_width_percent": 50,
+        "max_height_percent": 50
+      }
+    },
+    {
+      "id": "headline",
+      "type": "text",
+      "name": "Headline",
+      "visible": true,
+      "locked": false,
+      "x": 8, "y": 8, "width": 84, "height": 8,
+      "config": {
+        "content": "{{product.name}}",
+        "font_family": "Inter",
+        "font_size": 56,
+        "font_weight": "bold",
+        "color": "#f0ece4",
+        "text_align": "center",
+        "text_transform": "uppercase",
+        "letter_spacing": 4,
+        "line_height": 1.1
+      }
+    },
+    {
+      "id": "price",
+      "type": "text",
+      "name": "Price",
+      "visible": true,
+      "locked": false,
+      "x": 8, "y": 78, "width": 84, "height": 6,
+      "config": {
+        "content": "R{{product.price}}",
+        "font_family": "JetBrains Mono",
+        "font_size": 36,
+        "color": "{{brand.colors.primary}}",
+        "text_align": "center"
+      }
+    },
+    {
+      "id": "logo_wm",
+      "type": "image",
+      "name": "Brand watermark",
+      "visible": true,
+      "locked": true,
+      "x": 84, "y": 90, "width": 12, "height": 6,
+      "opacity": 0.75,
+      "config": {
+        "src": "{{brand.logo}}",
+        "object_fit": "contain"
+      }
+    }
+  ]
+}

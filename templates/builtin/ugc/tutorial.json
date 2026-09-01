@@ -1,0 +1,69 @@
+{
+  "id": null,
+  "name": "UGC Tutorial",
+  "category": "ugc",
+  "format": "video",
+  "duration_s": 27,
+  "fps": 30,
+  "aspect_ratio": "9:16",
+  "canvas": { "width": 1080, "height": 1920 },
+  "scenes": [
+    {
+      "id": "intro",
+      "kind": "text_bounce_in",
+      "duration_s": 3,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#222" },
+        { "type": "text", "id": "h", "x": 0.5, "y": 0.45, "text": "How to use it", "font_size": 76, "font_weight": "bold", "align": "center", "color": "#fff" }
+      ]
+    },
+    {
+      "id": "step1",
+      "kind": "slide_up",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#fff" },
+        { "type": "text", "id": "num", "x": 0.2, "y": 0.15, "text": "1", "font_size": 72, "font_weight": "bold", "align": "left", "color": "#ff6b6b" },
+        { "type": "text", "id": "t", "x": 0.5, "y": 0.5, "text": "Step one", "font_size": 56, "font_weight": "bold", "align": "center", "color": "#222" },
+        { "type": "product", "id": "p1", "x": 0.5, "y": 0.7, "scale": 0.4 }
+      ]
+    },
+    {
+      "id": "step2",
+      "kind": "slide_up",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#fff" },
+        { "type": "text", "id": "num", "x": 0.2, "y": 0.15, "text": "2", "font_size": 72, "font_weight": "bold", "align": "left", "color": "#ff6b6b" },
+        { "type": "text", "id": "t", "x": 0.5, "y": 0.5, "text": "Step two", "font_size": 56, "font_weight": "bold", "align": "center", "color": "#222" },
+        { "type": "product", "id": "p1", "x": 0.5, "y": 0.7, "scale": 0.4 }
+      ]
+    },
+    {
+      "id": "step3",
+      "kind": "slide_up",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#fff" },
+        { "type": "text", "id": "num", "x": 0.2, "y": 0.15, "text": "3", "font_size": 72, "font_weight": "bold", "align": "left", "color": "#ff6b6b" },
+        { "type": "text", "id": "t", "x": 0.5, "y": 0.5, "text": "Done", "font_size": 56, "font_weight": "bold", "align": "center", "color": "#222" },
+        { "type": "product", "id": "p1", "x": 0.5, "y": 0.7, "scale": 0.4 }
+      ]
+    },
+    {
+      "id": "cta",
+      "kind": "sticker_pop",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#ff6b6b" },
+        { "type": "text", "id": "h", "x": 0.5, "y": 0.45, "text": "Try it yourself", "font_size": 72, "font_weight": "bold", "align": "center", "color": "#fff" }
+      ]
+    }
+  ],
+  "transitions": [
+    { "from": "intro", "to": "step1", "kind": "fade", "duration_ms": 300 },
+    { "from": "step1", "to": "step2", "kind": "slide", "duration_ms": 350 },
+    { "from": "step2", "to": "step3", "kind": "slide", "duration_ms": 350 },
+    { "from": "step3", "to": "cta", "kind": "wipe", "duration_ms": 350 }
+  ]
+}

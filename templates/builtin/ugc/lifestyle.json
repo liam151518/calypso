@@ -1,0 +1,55 @@
+{
+  "id": null,
+  "name": "UGC Lifestyle",
+  "category": "ugc",
+  "format": "video",
+  "duration_s": 21,
+  "fps": 30,
+  "aspect_ratio": "9:16",
+  "canvas": { "width": 1080, "height": 1920 },
+  "scenes": [
+    {
+      "id": "mood",
+      "kind": "text_bounce_in",
+      "duration_s": 3,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#fefae0" },
+        { "type": "text", "id": "h", "x": 0.5, "y": 0.45, "text": "Slow living", "font_size": 84, "font_weight": "bold", "align": "center", "color": "#3a3a3a" }
+      ]
+    },
+    {
+      "id": "feature",
+      "kind": "slide_up",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#fff" },
+        { "type": "product", "id": "p1", "x": 0.5, "y": 0.55, "scale": 0.7 },
+        { "type": "text", "id": "t", "x": 0.5, "y": 0.85, "text": "Made for the morning", "font_size": 40, "align": "center", "color": "#222" }
+      ]
+    },
+    {
+      "id": "details",
+      "kind": "fade",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#f6f4ec" },
+        { "type": "text", "id": "h", "x": 0.5, "y": 0.3, "text": "Details matter", "font_size": 56, "font_weight": "bold", "align": "center", "color": "#222" },
+        { "type": "text", "id": "b", "x": 0.5, "y": 0.55, "text": "{brand.voice_punchy}", "font_size": 36, "align": "center", "color": "#444" }
+      ]
+    },
+    {
+      "id": "cta",
+      "kind": "sticker_pop",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#3a3a3a" },
+        { "type": "text", "id": "h", "x": 0.5, "y": 0.45, "text": "Shop the look", "font_size": 72, "font_weight": "bold", "align": "center", "color": "#fff" }
+      ]
+    }
+  ],
+  "transitions": [
+    { "from": "mood", "to": "feature", "kind": "fade", "duration_ms": 600 },
+    { "from": "feature", "to": "details", "kind": "slide", "duration_ms": 400 },
+    { "from": "details", "to": "cta", "kind": "wipe", "duration_ms": 400 }
+  ]
+}

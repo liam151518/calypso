@@ -1,0 +1,67 @@
+{
+  "id": null,
+  "name": "UGC Review",
+  "category": "ugc",
+  "format": "video",
+  "duration_s": 30,
+  "fps": 30,
+  "aspect_ratio": "9:16",
+  "canvas": { "width": 1080, "height": 1920 },
+  "scenes": [
+    {
+      "id": "hook",
+      "kind": "text_bounce_in",
+      "duration_s": 3,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#ff4d6d" },
+        { "type": "text", "id": "h", "x": 0.5, "y": 0.45, "text": "Honest review", "font_size": 88, "font_weight": "bold", "align": "center", "color": "#fff" }
+      ]
+    },
+    {
+      "id": "first-impression",
+      "kind": "slide_up",
+      "duration_s": 7,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#fff" },
+        { "type": "product", "id": "p1", "x": 0.5, "y": 0.5, "scale": 0.6 },
+        { "type": "text", "id": "t", "x": 0.5, "y": 0.85, "text": "First impressions", "font_size": 44, "align": "center", "color": "#111" }
+      ]
+    },
+    {
+      "id": "verdict",
+      "kind": "sticker_pop",
+      "duration_s": 8,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#f1faee" },
+        { "type": "text", "id": "t1", "x": 0.5, "y": 0.4, "text": "The verdict", "font_size": 56, "font_weight": "bold", "align": "center", "color": "#222" },
+        { "type": "text", "id": "t2", "x": 0.5, "y": 0.6, "text": "{brand.voice_punchy}", "font_size": 36, "align": "center", "color": "#333" }
+      ]
+    },
+    {
+      "id": "score",
+      "kind": "countdown_pulse",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#222" },
+        { "type": "text", "id": "big", "x": 0.5, "y": 0.45, "text": "9/10", "font_size": 220, "font_weight": "bold", "align": "center", "color": "#ffd166" },
+        { "type": "text", "id": "sub", "x": 0.5, "y": 0.65, "text": "would buy again", "font_size": 36, "align": "center", "color": "#fff" }
+      ]
+    },
+    {
+      "id": "cta",
+      "kind": "fade",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#0c0c12" },
+        { "type": "text", "id": "h", "x": 0.5, "y": 0.4, "text": "Worth it?", "font_size": 72, "font_weight": "bold", "align": "center", "color": "#fff" },
+        { "type": "text", "id": "sh", "x": 0.5, "y": 0.6, "text": "Tap the link", "font_size": 44, "align": "center", "color": "#ff4d6d" }
+      ]
+    }
+  ],
+  "transitions": [
+    { "from": "hook", "to": "first-impression", "kind": "fade", "duration_ms": 350 },
+    { "from": "first-impression", "to": "verdict", "kind": "zoom", "duration_ms": 500 },
+    { "from": "verdict", "to": "score", "kind": "slide", "duration_ms": 400 },
+    { "from": "score", "to": "cta", "kind": "cut", "duration_ms": 0 }
+  ]
+}

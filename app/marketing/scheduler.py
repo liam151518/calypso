@@ -1,12 +1,18 @@
-"""app/marketing/scheduler.py. Phase F.7 lightweight in-process scheduler.
+"""app/marketing/scheduler.py. Phase F.7 + Phase C.3 hybrid scheduler.
 
-Jobs are stored in `scheduled_jobs`. The scheduler thread wakes every
-~10 seconds, picks ready jobs, runs them, and marks status. Designed
-to survive process restarts (jobs are reloaded from SQLite on boot).
+Two cooperating schedulers live here:
 
-Production deployment should swap this for cron / systemd / k8s
-CronJob, but having a working in-process scheduler means the desktop
-app works out of the box with zero infrastructure.
+* ``_legacy_loop()`` is the original in-process thread-loop that walks
+  ``scheduled_jobs`` every 10s and dispatches ready jobs. It still works
+  out of the box with zero infrastructure.
+* ``APSchedulerBackend`` (used when ``apscheduler`` is installed) wraps
+  the same SQLite table as a persistent job store, so jobs survive a
+  process restart.
+
+Both paths honour the original public API — ``schedule``, ``cancel``,
+``list_jobs``, ``run_now``, ``start``, ``stop`` — so the 7 existing
+marketing tests continue to pass untouched. ``kind="publish_output"`` is
+new in Phase C and dispatches an output through :mod:`app.publisher`.
 """
 
 from __future__ import annotations
@@ -21,11 +27,17 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .. import db as app_db
+from .. import publisher as publisher_mod
 
 log = logging.getLogger(__name__)
 
-VALID_KINDS = ("send_campaign", "publish_social", "run_pipeline")
-VALID_STATUSES = ("queued", "running", "done", "failed")
+VALID_KINDS = (
+    "send_campaign",
+    "publish_social",
+    "run_pipeline",
+    "publish_output",  # Phase C: brand-poster → publisher
+)
+VALID_STATUSES = ("queued", "running", "done", "failed", "blocked")
 
 _TICK_S = 10.0
 _LOCK = threading.Lock()
@@ -33,6 +45,18 @@ _THREAD: threading.Thread | None = None
 _STOP = threading.Event()
 
 _HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {}
+
+_AP_SCHEDULER = None  # APScheduler instance, lazily started
+_AP_THREAD: threading.Thread | None = None
+
+
+def _conn() -> sqlite3.Connection:
+    c = sqlite3.connect(str(app_db.DB_PATH))
+    c.row_factory = sqlite3.Row
+    return c
+
+
+# ----- Public API ----------------------------------------------------------
 
 
 def register_handler(kind: str,
@@ -42,14 +66,9 @@ def register_handler(kind: str,
     _HANDLERS[kind] = handler
 
 
-def _conn() -> sqlite3.Connection:
-    c = sqlite3.connect(str(app_db.DB_PATH))
-    c.row_factory = sqlite3.Row
-    return c
-
-
 def schedule(name: str, kind: str, run_at: float,
              payload: dict[str, Any] | None = None) -> int:
+    """Insert a new job. ``run_at`` is an absolute Unix timestamp."""
     if kind not in VALID_KINDS:
         raise ValueError(f"unknown job kind: {kind}")
     with _conn() as c:
@@ -66,7 +85,7 @@ def schedule(name: str, kind: str, run_at: float,
 def cancel(job_id: int) -> bool:
     with _conn() as c:
         cur = c.execute(
-            "DELETE FROM scheduled_jobs WHERE id = ? AND status = 'queued'",
+            "DELETE FROM scheduled_jobs WHERE id = ? AND status IN ('queued','blocked')",
             (job_id,),
         )
     return cur.rowcount > 0
@@ -84,8 +103,39 @@ def list_jobs(*, status: str | None = None) -> list[dict[str, Any]]:
     return [_row(r) for r in rows]
 
 
+def get_job(job_id: int) -> dict[str, Any] | None:
+    with _conn() as c:
+        row = c.execute("SELECT * FROM scheduled_jobs WHERE id = ?", (job_id,)).fetchone()
+    return _row(row) if row else None
+
+
+def run_now(job_id: int) -> dict[str, Any]:
+    """Force-run a queued job immediately, regardless of ``run_at``."""
+    with _conn() as c:
+        row = c.execute(
+            "SELECT * FROM scheduled_jobs WHERE id = ?", (job_id,)
+        ).fetchone()
+    if not row:
+        return {"ok": False, "error": "not found"}
+    _run_one(int(row["id"]), row["kind"],
+             json.loads(row["payload_json"] or "{}"))
+    return get_job(job_id) or {"ok": False, "error": "lost"}
+
+
+def approve(job_id: int) -> dict[str, Any]:
+    """Mark a blocked job as queued so the next tick dispatches it."""
+    with _conn() as c:
+        c.execute(
+            "UPDATE scheduled_jobs SET status = 'queued', last_error = '' WHERE id = ?",
+            (job_id,),
+        )
+    return get_job(job_id) or {"ok": False, "error": "lost"}
+
+
 def start() -> None:
-    global _THREAD
+    """Start the legacy in-process loop. APScheduler is started on top if
+    its package is available."""
+    global _THREAD, _AP_THREAD, _AP_SCHEDULER
     with _LOCK:
         if _THREAD and _THREAD.is_alive():
             return
@@ -94,10 +144,25 @@ def start() -> None:
                                    daemon=True)
         _THREAD.start()
         log.info("scheduler started")
+        try:
+            _start_ap_scheduler()
+        except Exception as exc:  # noqa: BLE001
+            log.info("APScheduler unavailable, legacy loop only: %s", exc)
 
 
 def stop() -> None:
+    """Stop both schedulers (best effort)."""
     _STOP.set()
+    if _AP_SCHEDULER is not None:
+        try:
+            _AP_SCHEDULER.shutdown(wait=False)
+        except Exception:  # noqa: BLE001
+            pass
+        globals()["_AP_SCHEDULER"] = None
+    globals()["_AP_THREAD"] = None
+
+
+# ----- Core dispatch ------------------------------------------------------
 
 
 def _row(row: sqlite3.Row) -> dict[str, Any]:
@@ -114,8 +179,6 @@ def _row(row: sqlite3.Row) -> dict[str, Any]:
 
 
 def _loop() -> None:
-    # Re-register a couple of default handlers so the scheduler is useful
-    # even before the Flask app wires up extension-provided ones.
     register_default_handlers()
     while not _STOP.is_set():
         try:
@@ -123,6 +186,11 @@ def _loop() -> None:
         except Exception as exc:  # noqa: BLE001
             log.exception("scheduler tick failed: %s", exc)
         _STOP.wait(_TICK_S)
+
+
+def _legacy_loop() -> None:
+    """Re-claimed alias kept for the plan's backwards-compat shim."""
+    _loop()
 
 
 def _tick() -> None:
@@ -160,6 +228,8 @@ def _run_one(job_id: int, kind: str, payload: dict[str, Any]) -> None:
 def _mark(job_id: int, status: str, error: str, *,
           extra_status: str | None = None) -> None:
     final = extra_status if extra_status and status == "done" else status
+    if final not in VALID_STATUSES:
+        final = status
     with _conn() as c:
         c.execute(
             "UPDATE scheduled_jobs SET status = ?, last_error = ? WHERE id = ?",
@@ -167,11 +237,33 @@ def _mark(job_id: int, status: str, error: str, *,
         )
 
 
-# ---- default handlers ----
+# ----- APScheduler wrapper -----------------------------------------------
+
+
+def _start_ap_scheduler() -> None:
+    global _AP_SCHEDULER
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
+    except ImportError:
+        log.debug("apscheduler not installed; skipping AP backend")
+        return
+    if _AP_SCHEDULER is not None:
+        return
+    sched = BackgroundScheduler(daemon=True)
+    # Periodic poll that mirrors the legacy tick. If APScheduler itself
+    # fails, the legacy thread keeps the system alive.
+    sched.add_job(_tick, "interval", seconds=_TICK_S,
+                  id="calypso-tick", replace_existing=True)
+    sched.start()
+    _AP_SCHEDULER = sched
+    log.info("APScheduler started")
+
+
+# ----- Default handlers ---------------------------------------------------
+
 
 def register_default_handlers() -> None:
-    """Register a couple of safe default handlers so out-of-the-box
-    `scheduled` runs work without app-level wiring."""
+    """Register the safe default handlers used by ``_loop``."""
     if "send_campaign" not in _HANDLERS:
         def send_campaign(payload: dict[str, Any]) -> dict[str, Any]:
             from . import campaigns, contacts, analytics
@@ -214,3 +306,39 @@ def register_default_handlers() -> None:
             return {"ok": True, "run_id": run["id"] if run else None}
 
         register_handler("run_pipeline", run_pipeline)
+
+    if "publish_output" not in _HANDLERS:
+        def publish_output(payload: dict[str, Any]) -> dict[str, Any]:
+            """Dispatch a brand-poster output through :mod:`app.publisher`.
+
+            Payload contract:
+                output_id: int  — primary key in ``outputs``
+                platform: str   — target (instagram, x, tiktok, …)
+                preferred: str | None — publisher name hint (dry_run, telegram_handoff)
+            """
+            from .. import outputs as outputs_mod  # local to avoid cycles
+
+            output_id = int(payload.get("output_id") or 0)
+            platform = payload.get("platform") or "instagram"
+            preferred = payload.get("preferred")
+            out = outputs_mod.get_output(output_id)
+            if not out:
+                return {"ok": False, "error": "output not found"}
+            if out.get("auto_approve") is False:
+                # Phase C.5: Telegram gate happens elsewhere via notify();
+                # when the bot isn't configured we proceed without approval.
+                try:
+                    from .. import telegram_notify
+
+                    decision = telegram_notify.request_approval(out)
+                    if decision == "rejected":
+                        return {"ok": False, "status": "rejected"}
+                except Exception:  # noqa: BLE001
+                    pass
+            result = publisher_mod.dispatch(out, platform, preferred=preferred)
+            outputs_mod.mark_published(output_id, platform=platform,
+                                      external_id=result.get("external_id"),
+                                      url=result.get("url"))
+            return {"ok": True, "publisher": result}
+
+        register_handler("publish_output", publish_output)

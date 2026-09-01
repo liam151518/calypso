@@ -1,0 +1,73 @@
+{
+  "name": "Lifestyle Flatlay",
+  "category": "lifestyle",
+  "aspect_ratio": "1:1",
+  "canvas": { "width": 1080, "height": 1080 },
+  "safe_zones": { "top": 6, "bottom": 6, "left": 6, "right": 6 },
+  "default_filter": "bright",
+  "brand_locks": ["logo_wm"],
+  "layers": [
+    {
+      "id": "bg",
+      "type": "ai_background",
+      "name": "Flat lay surface",
+      "visible": true,
+      "locked": false,
+      "x": 0, "y": 0, "width": 100, "height": 100,
+      "opacity": 1.0,
+      "config": {
+        "prompt": "Overhead flat lay on warm sand textured surface, scattered organic props, soft window light, brand still life",
+        "negative_prompt": "people, faces, hands",
+        "model": "flux-pro/v1.1"
+      }
+    },
+    {
+      "id": "product",
+      "type": "product_cutout",
+      "name": "Hero product",
+      "visible": true,
+      "locked": false,
+      "x": 30, "y": 28, "width": 40, "height": 44,
+      "config": {
+        "slot": "center",
+        "auto_cutout": true,
+        "shadow": true,
+        "shadow_color": "#3a2a18",
+        "shadow_blur": 18,
+        "shadow_offset_x": 0,
+        "shadow_offset_y": 8,
+        "max_width_percent": 40
+      }
+    },
+    {
+      "id": "caption",
+      "type": "text",
+      "name": "Caption",
+      "visible": true,
+      "locked": false,
+      "x": 6, "y": 80, "width": 88, "height": 14,
+      "config": {
+        "content": "{{product.name}}",
+        "font_family": "Inter",
+        "font_size": 38,
+        "color": "#1a1a1a",
+        "text_align": "left",
+        "text_transform": "none",
+        "line_height": 1.2
+      }
+    },
+    {
+      "id": "logo_wm",
+      "type": "image",
+      "name": "Brand watermark",
+      "visible": true,
+      "locked": true,
+      "x": 80, "y": 6, "width": 14, "height": 7,
+      "opacity": 0.7,
+      "config": {
+        "src": "{{brand.logo}}",
+        "object_fit": "contain"
+      }
+    }
+  ]
+}

@@ -77,6 +77,19 @@ def update_campaign(cid: int, **patch) -> bool:
     args = list(patch.values()) + [cid]
     with _conn() as c:
         cur = c.execute(f"UPDATE campaigns SET {sets} WHERE id = ?", args)
+    # Phase G.2 — fire campaign_scheduled hook so automation rules can
+    # react (e.g. render a follow-up preset, queue captions).
+    if cur.rowcount > 0 and patch.get("status") == "scheduled":
+        try:
+            from app import automation as automation_mod
+            automation_mod.run_rules_for_event(
+                "campaign_scheduled",
+                {"campaign_id": int(cid),
+                 "channel": patch.get("channel"),
+                 "send_at": patch.get("send_at")},
+            )
+        except Exception:  # noqa: BLE001
+            pass
     return cur.rowcount > 0
 
 

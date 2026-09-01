@@ -63,6 +63,7 @@ from __future__ import annotations
 
 import json
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -573,6 +574,24 @@ def _register_routes(app: Flask) -> None:
         if not video_dir.exists() or not (video_dir / "video.mp4").exists():
             abort(404)
         return send_from_directory(video_dir, "video.mp4", mimetype="video/mp4")
+
+    @app.route("/outputs/images/<path:filename>")
+    def outputs_image(filename: str):
+        from app.compositor import IMAGES_DIR as _IMAGES_DIR
+        return send_from_directory(_IMAGES_DIR, filename)
+
+    @app.route("/outputs/videos/<path:filename>")
+    def outputs_video_file(filename: str):
+        from app.video_compositor import VIDEOS_DIR as _VIDEOS_DIR
+        return send_from_directory(_VIDEOS_DIR, filename)
+
+    @app.route("/outputs/motion/<path:filename>")
+    def outputs_motion(filename: str):
+        from app.motion.opencv import OpenCVMotionBackend
+        # Always serves from the same outputs/motion dir; we instantiate a
+        # backend with no `output_dir` so it falls back to its default.
+        backend = OpenCVMotionBackend()
+        return send_from_directory(backend.output_dir, filename)
 
     @app.route("/image")
     def image_page():
@@ -1789,6 +1808,944 @@ def _register_api_routes(app: Flask) -> None:
         email = (body.get("email") or "").strip().lower()
         return ok(m_compliance.erase_user_data(email))
 
+    # ====================================================================
+    # Phase A — Brand Poster surface: templates, products, render, filters
+    # ====================================================================
+    from app import templates as tpl_mod
+    from app import products as prod_mod
+    from app import filters as filters_api
+    from app import compositor as comp_mod
+    from app.utils import (
+        TemplateError as _TemplateError,
+        ASPECT_RATIOS as _ASPECT_RATIOS,
+        LAYER_TYPES as _LAYER_TYPES,
+    )
+
+    # ---- templates ----
+
+    @app.route("/api/templates", methods=["GET"])
+    def api_templates_list():
+        brand_id = request.args.get("brand_id", type=int)
+        category = request.args.get("category") or None
+        items = tpl_mod.list_templates(brand_id=brand_id, category=category)
+        return jsonify({"templates": items, "aspect_ratios": list(_ASPECT_RATIOS), "layer_types": list(_LAYER_TYPES)})
+
+    @app.route("/api/templates/<int:template_id>", methods=["GET"])
+    def api_templates_get(template_id: int):
+        item = tpl_mod.get_template(template_id)
+        if item is None:
+            abort(404)
+        return jsonify({"template": item})
+
+    @app.route("/api/templates", methods=["POST"])
+    def api_templates_create():
+        body = request.get_json(silent=True) or {}
+        brand_id = body.get("brand_id")
+        try:
+            tid = tpl_mod.create_template(body, brand_id=int(brand_id) if brand_id else None)
+        except _TemplateError as exc:
+            return err(str(exc), code=400)
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"template_id": tid}, status_code=201)
+
+    @app.route("/api/templates/<int:template_id>", methods=["PUT", "PATCH"])
+    def api_templates_update(template_id: int):
+        body = request.get_json(silent=True) or {}
+        force = bool(body.get("force"))
+        try:
+            ok_flag = tpl_mod.update_template(template_id, body, force=force)
+        except _TemplateError as exc:
+            return err(str(exc), code=400)
+        return ok({"updated": ok_flag}) if ok_flag else err("not found", code=404)
+
+    @app.route("/api/templates/<int:template_id>", methods=["DELETE"])
+    def api_templates_delete(template_id: int):
+        force = request.args.get("force") in ("1", "true", "yes")
+        try:
+            ok_flag = tpl_mod.delete_template(template_id, force=force)
+        except _TemplateError as exc:
+            return err(str(exc), code=400)
+        return ok({"deleted": ok_flag}) if ok_flag else err("not found", code=404)
+
+    @app.route("/api/templates/<int:template_id>/duplicate", methods=["POST"])
+    def api_templates_duplicate(template_id: int):
+        body = request.get_json(silent=True) or {}
+        new_name = (body.get("name") or "").strip() or f"Copy {template_id}"
+        try:
+            new_id = tpl_mod.duplicate_template(template_id, new_name)
+        except _TemplateError as exc:
+            return err(str(exc), code=400)
+        return ok({"template_id": new_id}, status_code=201)
+
+    # ---- products ----
+
+    @app.route("/api/products", methods=["GET"])
+    def api_products_list():
+        brand_id = request.args.get("brand_id", type=int)
+        category = request.args.get("category") or None
+        collection = request.args.get("collection") or None
+        tag = request.args.get("tag") or None
+        items = prod_mod.list_products(brand_id=brand_id, category=category, collection=collection, tag=tag)
+        return jsonify({"products": items})
+
+    @app.route("/api/products/<int:product_id>", methods=["GET"])
+    def api_products_get(product_id: int):
+        item = prod_mod.get_product(product_id)
+        if item is None:
+            abort(404)
+        return jsonify({"product": item, "variants": prod_mod.list_variants(product_id)})
+
+    @app.route("/api/products", methods=["POST"])
+    def api_products_create():
+        body = request.get_json(silent=True) or {}
+        try:
+            pid = prod_mod.create_product(
+                body.get("brand_id"),
+                name=body.get("name") or "",
+                price=body.get("price"),
+                category=body.get("category"),
+                collection=body.get("collection"),
+                description=body.get("description"),
+                image_path=body.get("image_path"),
+                tags=body.get("tags") or [],
+                launch_date=body.get("launch_date"),
+            )
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"product_id": pid}, status_code=201)
+
+    @app.route("/api/products/<int:product_id>", methods=["PUT", "PATCH"])
+    def api_products_update(product_id: int):
+        body = request.get_json(silent=True) or {}
+        ok_flag = prod_mod.update_product(product_id, body)
+        return ok({"updated": ok_flag}) if ok_flag else err("not found", code=404)
+
+    @app.route("/api/products/<int:product_id>", methods=["DELETE"])
+    def api_products_delete(product_id: int):
+        ok_flag = prod_mod.delete_product(product_id)
+        return ok({"deleted": ok_flag}) if ok_flag else err("not found", code=404)
+
+    @app.route("/api/products/import", methods=["POST"])
+    def api_products_import():
+        body = request.get_json(silent=True) or {}
+        brand_id = body.get("brand_id")
+        if "csv" in body:
+            res = prod_mod.import_csv(int(brand_id) if brand_id else None, body["csv"] or "")
+        else:
+            res = prod_mod.bulk_import(int(brand_id) if brand_id else None, body.get("rows") or [])
+        return ok(res, status_code=201)
+
+    @app.route("/api/products/<int:product_id>/cutout", methods=["POST"])
+    def api_products_cutout(product_id: int):
+        regen = request.args.get("regenerate") in ("1", "true", "yes") or bool(
+            (request.get_json(silent=True) or {}).get("regenerate")
+        )
+        try:
+            path = prod_mod.get_cutout(product_id, regenerate=regen)
+        except (ValueError, FileNotFoundError) as exc:
+            return err(str(exc), code=400)
+        except RuntimeError as exc:
+            return err(str(exc), code=500)
+        return ok({"cutout_path": path})
+
+    # ---- filters ----
+
+    @app.route("/api/filters", methods=["GET"])
+    def api_filters_list():
+        return jsonify({"presets": filters_api.list_presets(), "user": filters_api.list_user_presets()})
+
+    @app.route("/api/filters/preview", methods=["POST"])
+    def api_filters_preview():
+        body = request.get_json(silent=True) or {}
+        img_path = body.get("image_path")
+        if not img_path:
+            return err("image_path required", code=400)
+        from pathlib import Path
+        p = Path(img_path)
+        if not p.exists():
+            p = (Path(__file__).resolve().parent.parent / img_path).resolve()
+        if not p.exists():
+            return err(f"image not found: {img_path}", code=404)
+        settings = body.get("settings") or body.get("preset_settings") or {}
+        try:
+            out_path = filters_api.preview(p, settings)
+        except Exception as exc:  # noqa: BLE001
+            return err(str(exc), code=500)
+        return ok({"preview_path": str(out_path)})
+
+    # ---- render ----
+
+    @app.route("/api/render", methods=["POST"])
+    def api_render():
+        body = request.get_json(silent=True) or {}
+        template_id = body.get("template_id")
+        if template_id is None:
+            return err("template_id required", code=400)
+        job_id = body.get("job_id") or f"render_{uuid.uuid4().hex[:12]}"
+        try:
+            res = comp_mod.render(
+                int(template_id),
+                product_id=body.get("product_id"),
+                layer_overrides=body.get("layer_overrides"),
+                filter_name=body.get("filter"),
+                aspect_ratio=body.get("aspect_ratio"),
+                intensity=float(body.get("intensity") or 1.0),
+                brand_id=body.get("brand_id"),
+                job_id=job_id,
+            )
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok(
+            {
+                "output_id": res.output_id,
+                "file_path": res.file_path,
+                "cost_usd": res.cost_usd,
+                "cached_background": res.cached_background,
+                "elapsed_seconds": res.elapsed_seconds,
+                "job_id": job_id,
+            },
+            status_code=201,
+        )
+
+    @app.route("/api/render/batch", methods=["POST"])
+    def api_render_batch():
+        body = request.get_json(silent=True) or {}
+        template_id = body.get("template_id")
+        product_ids = body.get("product_ids") or []
+        if template_id is None or not product_ids:
+            return err("template_id and product_ids required", code=400)
+        results = comp_mod.render_batch(
+            template_id=int(template_id),
+            product_ids=[int(p) for p in product_ids],
+            layer_overrides=body.get("layer_overrides"),
+            filter_name=body.get("filter"),
+            intensity=float(body.get("intensity") or 1.0),
+        )
+        return ok(
+            {
+                "renders": [
+                    {
+                        "output_id": r.output_id,
+                        "file_path": r.file_path,
+                        "cost_usd": r.cost_usd,
+                    }
+                    for r in results
+                ]
+            }
+        )
+
+    # ---- bootstrap built-ins on first hit ----
+
+    @app.route("/api/templates/boot-builtins", methods=["POST"])
+    def api_templates_boot_builtins():
+        inserted = tpl_mod.load_builtins()
+        return ok({"inserted": inserted})
+
+    # ---- outputs (gallery) ----
+
+    @app.route("/api/outputs/images", methods=["GET"])
+    def api_outputs_images():
+        from app import db as app_db
+        conn = app_db.get_conn()
+        rows = conn.execute(
+            "SELECT id, brand_id, product_id, template_id, type, file_path, "
+            "aspect_ratio, filter_applied, status, cost_usd, created_at "
+            "FROM outputs WHERE type = 'image' ORDER BY id DESC LIMIT 200"
+        ).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            try:
+                rel = f"/outputs/images/{Path(d['file_path']).name}"
+                d["rel_url"] = rel
+            except Exception:  # noqa: BLE001
+                d["rel_url"] = None
+            out.append(d)
+        return jsonify({"outputs": out})
+
+    # ====================================================================
+    # Phase D — Video pipeline: render_video, one_shot, UGC templates
+    # ====================================================================
+
+    @app.route("/api/video/templates", methods=["GET"])
+    def api_video_templates():
+        from app import video_compositor as vc
+        names = vc.list_ugc_templates()
+        return ok({"templates": [
+            {"name": n, "template": vc.load_ugc_template(n)} for n in names
+        ]})
+
+    # ---- Phase E: motion graphics ----
+    @app.route("/api/motion/backends", methods=["GET"])
+    def api_motion_backends():
+        from app import motion as motion_mod
+        backend = motion_mod.get_backend()
+        return ok({"active": backend.name, "available": backend.available()})
+
+    @app.route("/api/motion/render", methods=["POST"])
+    def api_motion_render():
+        from app import motion as motion_mod
+        body = request.get_json(silent=True) or {}
+        try:
+            kind = str(body.get("kind") or "")
+            duration_s = float(body.get("duration_s") or 1.0)
+            fps = int(body.get("fps") or 30)
+            canvas_w = int(body.get("canvas_w") or 1080)
+            canvas_h = int(body.get("canvas_h") or 1920)
+        except (TypeError, ValueError) as exc:
+            return err(f"invalid input: {exc}", code=400)
+        backend_name = body.get("backend")
+        try:
+            backend = motion_mod.get_backend(backend_name)
+        except (RuntimeError, ValueError) as exc:
+            return err(str(exc), code=400)
+        try:
+            clip = backend.generate(motion_mod.MotionRequest(
+                kind=kind,
+                params=dict(body.get("params") or {}),
+                duration_s=duration_s,
+                fps=fps,
+                canvas_w=canvas_w,
+                canvas_h=canvas_h,
+            ))
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        rels = []
+        for p in clip.frames:
+            try:
+                rels.append(f"/outputs/motion/{Path(p).name}")
+            except Exception:  # noqa: BLE001
+                rels.append(None)
+        return ok({
+            "backend": clip.backend,
+            "kind": clip.kind,
+            "frames": rels,
+            "duration_s": clip.duration_s,
+        })
+
+    # ====================================================================
+    # Phase F — Studio Pro: brand-poster multi-agent surface
+    # ====================================================================
+
+    @app.route("/api/studio-pro/generate", methods=["POST"])
+    def api_studio_pro_generate():
+        from app.studio_pro import StudioProBrief, run_studio_pro
+        from app import brand as brand_mod
+        from app import templates as tpl_mod
+
+        body = request.get_json(silent=True) or {}
+        brief_text = str(body.get("brief") or "").strip()
+        if not brief_text:
+            return err("brief required", code=400)
+        try:
+            product_id = int(body.get("product_id") or 0) or None
+            brand_id = body.get("brand_id")
+            brand_id = int(brand_id) if brand_id is not None else None
+            budget = float(body.get("budget_usd") or 5.0)
+            duration_s = body.get("duration_s")
+            duration_s = int(duration_s) if duration_s is not None else None
+        except (TypeError, ValueError) as exc:
+            return err(f"invalid input: {exc}", code=400)
+        platforms = body.get("platforms") or ["instagram"]
+        audience = body.get("audience")
+        brand = brand_mod.get_brand(brand_id) if brand_id else brand_mod.get_active_brand()
+        templates = tpl_mod.list_templates(brand_id=brand_id or None,
+                                             include_builtin=True)
+        product = None
+        if product_id:
+            try:
+                from app import products as products_mod
+                product = products_mod.get_product(product_id)
+            except Exception:  # noqa: BLE001
+                product = None
+        brief_obj = StudioProBrief(
+            brief=brief_text,
+            product_id=product_id,
+            brand_id=brand_id,
+            platforms=list(platforms),
+            budget_usd=budget,
+            audience=audience,
+            duration_s=duration_s,
+        )
+        run = run_studio_pro(
+            brief_obj,
+            brand=brand or {},
+            product=product,
+            templates=templates,
+        )
+        return ok({
+            "run_id": run.run_id,
+            "suggestions": run.suggestions,
+            "agent_log": run.agent_log,
+            "spent_usd": run.spent_usd,
+            "started_at": run.started_at,
+            "finished_at": run.finished_at,
+        })
+
+    @app.route("/api/studio-pro/<run_id>/log", methods=["GET"])
+    def api_studio_pro_log(run_id: str):
+        from app import db as app_db
+        conn = app_db.get_conn()
+        rows = conn.execute(
+            "SELECT id, template_id, layer_overrides_json, rationale_json, "
+            "confidence_score, cost_usd, status, created_at "
+            "FROM studio_suggestions WHERE run_id = ? ORDER BY id",
+            (run_id,),
+        ).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            for k in ("layer_overrides_json", "rationale_json"):
+                raw = d.get(k)
+                if isinstance(raw, str):
+                    try:
+                        d[k.replace("_json", "")] = json.loads(raw)
+                    except json.JSONDecodeError:
+                        d[k.replace("_json", "")] = None
+                    d.pop(k, None)
+            out.append(d)
+        return ok({"suggestions": out, "run_id": run_id})
+
+    @app.route("/api/studio-pro/<int:suggestion_id>/accept", methods=["POST"])
+    def api_studio_pro_accept(suggestion_id: int):
+        from app import db as app_db
+        from app import studio_pro as studio_pro_mod
+        from app import compositor as compositor_mod
+        from app import templates as tpl_mod
+
+        conn = app_db.get_conn()
+        row = conn.execute(
+            "SELECT id, run_id, template_id, layer_overrides_json, status "
+            "FROM studio_suggestions WHERE id = ?",
+            (suggestion_id,),
+        ).fetchone()
+        if not row:
+            return err("suggestion not found", code=404)
+        if row["status"] not in ("pending", "accepted"):
+            return err(f"cannot accept suggestion in status={row['status']!r}", code=409)
+        template_id = int(row["template_id"])
+        template = tpl_mod.get_template(template_id)
+        if template is None:
+            return err("template not found", code=404)
+        body = request.get_json(silent=True) or {}
+        try:
+            product_id = body.get("product_id")
+            product_id = int(product_id) if product_id is not None else None
+            brand_id = body.get("brand_id")
+            brand_id = int(brand_id) if brand_id is not None else None
+        except (TypeError, ValueError):
+            product_id = None
+            brand_id = None
+        # Render via the existing Compositor. We don't apply layer_overrides
+        # here (Phase F.6 says the SPA can pre-populate the editor instead);
+        # but we do mark the suggestion accepted and return an editor URL.
+        result = compositor_mod.render(
+            template_id,
+            product_id=product_id,
+            brand_id=brand_id,
+        )
+        conn.execute(
+            "UPDATE studio_suggestions SET status = 'accepted' WHERE id = ?",
+            (suggestion_id,),
+        )
+        conn.commit()
+        return ok({
+            "suggestion_id": suggestion_id,
+            "output_id": result.output_id,
+            "editor_url": f"/editor/{template_id}",
+            "file_path": result.file_path,
+        })
+
+    @app.route("/api/studio-pro/<int:suggestion_id>/schedule", methods=["POST"])
+    def api_studio_pro_schedule(suggestion_id: int):
+        from app import db as app_db
+        from app.marketing import scheduler as sched_mod
+
+        conn = app_db.get_conn()
+        row = conn.execute(
+            "SELECT id, run_id, template_id, status FROM studio_suggestions "
+            "WHERE id = ?",
+            (suggestion_id,),
+        ).fetchone()
+        if not row:
+            return err("suggestion not found", code=404)
+        if row["status"] not in ("pending", "accepted"):
+            return err(f"cannot schedule suggestion in status={row['status']!r}",
+                       code=409)
+        body = request.get_json(silent=True) or {}
+        try:
+            run_at = float(body.get("run_at") or time.time() + 3600)
+        except (TypeError, ValueError):
+            return err("run_at must be a unix timestamp", code=400)
+        template_id_raw = row["template_id"]
+        if template_id_raw is None:
+            return err("suggestion has no template_id; cannot schedule", code=400)
+        template_id = int(template_id_raw)
+        jid = sched_mod.schedule(
+            name=f"Studio Pro suggestion {suggestion_id}",
+            kind="publish_output",
+            run_at=run_at,
+            payload={
+                "output_id": 0,
+                "template_id": template_id,
+                "platform": body.get("platform") or "instagram",
+                "suggestion_id": suggestion_id,
+            },
+        )
+        conn.execute(
+            "UPDATE studio_suggestions SET status = 'scheduled' WHERE id = ?",
+            (suggestion_id,),
+        )
+        conn.commit()
+        return ok({"suggestion_id": suggestion_id, "job_id": jid})
+
+    # ====================================================================
+    # Phase G — Presets, automation, config import/export, render events
+    # ====================================================================
+
+    @app.route("/api/presets", methods=["GET", "POST"])
+    def api_presets():
+        from app import presets as presets_mod
+
+        if request.method == "GET":
+            brand_id = request.args.get("brand_id", type=int)
+            return ok({"presets": presets_mod.list_for_brand(brand_id)})
+        body = request.get_json(silent=True) or {}
+        try:
+            brand_id = body.get("brand_id")
+            brand_id = int(brand_id) if brand_id is not None else None
+            template_id = body.get("template_id")
+            template_id = int(template_id) if template_id is not None else None
+        except (TypeError, ValueError):
+            return err("invalid id", code=400)
+        try:
+            pid = presets_mod.create(
+                brand_id,
+                name=str(body.get("name") or ""),
+                description=body.get("description"),
+                template_id=template_id,
+                layers=body.get("layers") or [],
+                filter_name=body.get("filter"),
+                caption_template=body.get("caption_template"),
+                schedule_settings=body.get("schedule_settings") or {},
+                product_filter=body.get("product_filter") or {},
+            )
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"preset_id": pid})
+
+    @app.route("/api/presets/<int:preset_id>", methods=["GET", "PATCH", "DELETE"])
+    def api_preset_item(preset_id: int):
+        from app import presets as presets_mod
+
+        if request.method == "GET":
+            p = presets_mod.get(preset_id)
+            return ok({"preset": p}) if p else err("not found", code=404)
+        if request.method == "DELETE":
+            deleted = presets_mod.delete(preset_id)
+            return ok({"deleted": deleted}) if deleted else err("not found", code=404)
+        body = request.get_json(silent=True) or {}
+        try:
+            updated = presets_mod.update(preset_id, **body)
+        except Exception as exc:  # noqa: BLE001
+            return err(str(exc), code=400)
+        return ok({"preset": updated}) if updated else err("not found", code=404)
+
+    @app.route("/api/presets/<int:preset_id>/apply", methods=["POST"])
+    def api_preset_apply(preset_id: int):
+        from app import presets as presets_mod
+
+        body = request.get_json(silent=True) or {}
+        product_ids = body.get("product_ids") or []
+        if not isinstance(product_ids, list) or not all(
+            isinstance(p, int) for p in product_ids
+        ):
+            return err("product_ids must be a list of ints", code=400)
+        result = presets_mod.batch_apply(preset_id, product_ids)
+        return ok(result)
+
+    @app.route("/api/automation/rules", methods=["GET", "POST"])
+    def api_automation_rules():
+        from app import automation as automation_mod
+
+        if request.method == "GET":
+            brand_id = request.args.get("brand_id", type=int)
+            return ok({"rules": automation_mod.list_rules(brand_id)})
+        body = request.get_json(silent=True) or {}
+        try:
+            brand_id = body.get("brand_id")
+            brand_id = int(brand_id) if brand_id is not None else None
+        except (TypeError, ValueError):
+            return err("invalid brand_id", code=400)
+        try:
+            rid = automation_mod.create_rule(
+                brand_id,
+                name=str(body.get("name") or ""),
+                trigger=str(body.get("trigger") or ""),
+                conditions=list(body.get("conditions") or []),
+                action=dict(body.get("action") or {}),
+                is_active=bool(body.get("is_active", True)),
+            )
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"rule_id": rid})
+
+    @app.route(
+        "/api/automation/rules/<int:rule_id>",
+        methods=["GET", "PATCH", "DELETE"],
+    )
+    def api_automation_rule_item(rule_id: int):
+        from app import automation as automation_mod
+
+        if request.method == "GET":
+            r = automation_mod.get_rule(rule_id)
+            return ok({"rule": r}) if r else err("not found", code=404)
+        if request.method == "DELETE":
+            deleted = automation_mod.delete_rule(rule_id)
+            return ok({"deleted": deleted}) if deleted else err("not found", code=404)
+        body = request.get_json(silent=True) or {}
+        if "is_active" in body:
+            ok_set = automation_mod.set_active(rule_id, bool(body["is_active"]))
+            if not ok_set:
+                return err("not found", code=404)
+        return ok({"rule": automation_mod.get_rule(rule_id)})
+
+    @app.route("/api/automation/rules/<int:rule_id>/run", methods=["POST"])
+    def api_automation_rule_run(rule_id: int):
+        from app import automation as automation_mod
+
+        body = request.get_json(silent=True) or {}
+        ids = automation_mod.run_rule(rule_id, payload=body)
+        return ok({"output_ids": ids})
+
+    @app.route("/api/config/export", methods=["GET"])
+    def api_config_export():
+        from app import config_io as config_io_mod
+        return ok({"config": config_io_mod.export_config()})
+
+    @app.route("/api/config/import", methods=["POST"])
+    def api_config_import():
+        from app import config_io as config_io_mod
+
+        body = request.get_json(silent=True) or {}
+        doc = body.get("config") or {}
+        merge = bool(body.get("merge", True))
+        try:
+            counts = config_io_mod.import_config(doc, merge=merge)
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"imported": counts})
+
+    @app.route("/api/render/<job_id>/events", methods=["GET"])
+    def api_render_events(job_id: str):
+        from app import ws as ws_mod
+        return ws_mod.sse_response(job_id)
+
+    def api_motion_render():
+        from app import motion as motion_mod
+        body = request.get_json(silent=True) or {}
+        try:
+            kind = str(body.get("kind") or "")
+            duration_s = float(body.get("duration_s") or 1.0)
+            fps = int(body.get("fps") or 30)
+            canvas_w = int(body.get("canvas_w") or 1080)
+            canvas_h = int(body.get("canvas_h") or 1920)
+        except (TypeError, ValueError) as exc:
+            return err(f"invalid input: {exc}", code=400)
+        backend_name = body.get("backend")
+        try:
+            backend = motion_mod.get_backend(backend_name)
+        except (RuntimeError, ValueError) as exc:
+            return err(str(exc), code=400)
+        try:
+            clip = backend.generate(motion_mod.MotionRequest(
+                kind=kind,
+                params=dict(body.get("params") or {}),
+                duration_s=duration_s,
+                fps=fps,
+                canvas_w=canvas_w,
+                canvas_h=canvas_h,
+            ))
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        rels = []
+        for p in clip.frames:
+            try:
+                rels.append(f"/outputs/motion/{Path(p).name}")
+            except Exception:  # noqa: BLE001
+                rels.append(None)
+        return ok({
+            "backend": clip.backend,
+            "kind": clip.kind,
+            "frames": rels,
+            "duration_s": clip.duration_s,
+        })
+
+    @app.route("/api/video/render", methods=["POST"])
+    def api_video_render():
+        from app import video_compositor as vc
+        body = request.get_json(silent=True) or {}
+        try:
+            template_id = int(body.get("template_id") or 0)
+            product_id = body.get("product_id")
+            product_id = int(product_id) if product_id is not None else None
+            brand_id = body.get("brand_id")
+            brand_id = int(brand_id) if brand_id is not None else None
+        except (TypeError, ValueError) as exc:
+            return err(f"invalid input: {exc}", code=400)
+        try:
+            result = vc.render_video(
+                template_id,
+                product_id=product_id,
+                brand_id=brand_id,
+                audio_track=body.get("audio_track"),
+            )
+        except (FileNotFoundError, ValueError, RuntimeError) as exc:
+            return err(str(exc), code=400)
+        rel = None
+        if result.file_path:
+            try:
+                rel = f"/outputs/videos/{Path(result.file_path).name}"
+            except Exception:  # noqa: BLE001
+                rel = None
+        return ok({
+            "output_id": result.output_id,
+            "file_path": result.file_path,
+            "rel_url": rel,
+            "duration_s": result.duration_s,
+            "cost_usd": result.cost_usd,
+            "elapsed_seconds": result.elapsed_seconds,
+        })
+
+    @app.route("/api/video/one-shot", methods=["POST"])
+    def api_video_one_shot():
+        from app import one_shot as one_shot_mod
+        body = request.get_json(silent=True) or {}
+        brief = str(body.get("brief") or "")
+        try:
+            product_id = int(body.get("product_id") or 0)
+        except (TypeError, ValueError):
+            return err("product_id required", code=400)
+        template_id = body.get("template_id")
+        template_id = int(template_id) if template_id is not None else None
+        duration_s = int(body.get("duration_s") or 30)
+        brand = body.get("brand") or {}
+        try:
+            result = one_shot_mod.one_shot(
+                brief,
+                template_id=template_id,
+                product_id=product_id,
+                brand=brand,
+                duration_s=duration_s,
+            )
+        except (RuntimeError, ValueError) as exc:
+            return err(str(exc), code=400)
+        rel = None
+        if result.file_path:
+            try:
+                rel = f"/outputs/videos/{Path(result.file_path).name}"
+            except Exception:  # noqa: BLE001
+                rel = None
+        return ok({
+            "output_id": result.output_id,
+            "file_path": result.file_path,
+            "rel_url": rel,
+            "duration_s": result.duration_s,
+            "cost_usd": result.cost_usd,
+            "elapsed_seconds": result.elapsed_seconds,
+        })
+
+    # ---- Phase C: captions + feed + scheduler + publisher + telegram ----
+
+    @app.route("/api/captions/generate", methods=["POST"])
+    def api_captions_generate():
+        from app import captions as captions_mod
+        body = request.get_json(silent=True) or {}
+        try:
+            product_id = int(body.get("product_id") or 0)
+            template_id = int(body.get("template_id") or 0)
+            brand_id = body.get("brand_id")
+            if brand_id is not None:
+                brand_id = int(brand_id)
+            platform = str(body.get("platform") or "instagram")
+            model = str(body.get("model") or "heuristic")
+            count = int(body.get("count") or 3)
+        except (TypeError, ValueError) as exc:
+            return err(f"invalid input: {exc}", code=400)
+        # Pull product + template from the DB.
+        conn = app_db.get_conn()
+        product_row = conn.execute(
+            "SELECT * FROM products WHERE id = ?", (product_id,)
+        ).fetchone() if product_id else None
+        template_row = conn.execute(
+            "SELECT * FROM templates WHERE id = ?", (template_id,)
+        ).fetchone() if template_id else None
+        brand = None
+        if brand_id:
+            brand = brand.get_brand_v2(brand_id) if hasattr(brand, "get_brand_v2") else None
+            # local import avoids circulars
+            from app import brand as brand_mod
+            brand = brand_mod.get_brand_v2(brand_id)
+        product = dict(product_row) if product_row else {"id": product_id}
+        template = dict(template_row) if template_row else {"id": template_id}
+        try:
+            variants = captions_mod.generate(
+                product=product,
+                template=template,
+                brand=brand,
+                platform=platform,
+                model=model,
+                count=count,
+            )
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"variants": [v.to_dict() for v in variants]})
+
+    @app.route("/api/captions/select", methods=["POST"])
+    def api_captions_select():
+        from app import captions as captions_mod
+        body = request.get_json(silent=True) or {}
+        try:
+            output_id = int(body.get("output_id") or 0)
+        except (TypeError, ValueError):
+            return err("output_id required", code=400)
+        variant_dict = body.get("variant") or {}
+        try:
+            variant = captions_mod.CaptionVariant(
+                content=str(variant_dict.get("content", "")),
+                hashtags=list(variant_dict.get("hashtags") or []),
+                first_comment=str(variant_dict.get("first_comment", "")),
+                alt_text=str(variant_dict.get("alt_text", "")),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return err(f"invalid variant: {exc}", code=400)
+        platform = str(body.get("platform") or "instagram")
+        row_id = captions_mod.persist_selection(
+            output_id=output_id,
+            variant=variant,
+            platform=platform,
+            brand_id=body.get("brand_id"),
+            template_id=body.get("template_id"),
+            product_id=body.get("product_id"),
+        )
+        return ok({"caption_id": row_id})
+
+    @app.route("/api/captions/<int:output_id>", methods=["GET"])
+    def api_captions_for_output(output_id: int):
+        from app import captions as captions_mod
+        return ok({"captions": captions_mod.list_for_output(output_id)})
+
+    @app.route("/api/feed", methods=["GET"])
+    def api_feed_grid():
+        from app import feed_preview as fp_mod
+        brand_id = request.args.get("brand_id", type=int)
+        new_id = request.args.get("new_output_id", type=int)
+        return ok({"items": fp_mod.grid(brand_id=brand_id, new_output_id=new_id)})
+
+    @app.route("/api/feed/shuffle", methods=["POST"])
+    def api_feed_shuffle():
+        from app import feed_preview as fp_mod
+        body = request.get_json(silent=True) or {}
+        brand_id = body.get("brand_id")
+        if brand_id is not None:
+            brand_id = int(brand_id)
+        request_token = body.get("request_token") or ""
+        return ok({"items": fp_mod.shuffle(brand_id=brand_id, request_token=request_token)})
+
+    @app.route("/api/scheduler/schedule", methods=["POST"])
+    def api_scheduler_schedule():
+        from app.marketing import scheduler as sched_mod
+        body = request.get_json(silent=True) or {}
+        name = str(body.get("name") or "")
+        kind = str(body.get("kind") or "publish_output")
+        run_at = float(body.get("run_at") or time.time())
+        payload = body.get("payload") or {}
+        if not name:
+            return err("name required", code=400)
+        try:
+            job_id = sched_mod.schedule(name, kind, run_at, payload)
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"job_id": job_id})
+
+    @app.route("/api/scheduler/jobs", methods=["GET"])
+    def api_scheduler_jobs():
+        from app.marketing import scheduler as sched_mod
+        status = request.args.get("status")
+        return ok({"jobs": sched_mod.list_jobs(status=status)})
+
+    @app.route("/api/scheduler/jobs/<int:job_id>/run", methods=["POST"])
+    def api_scheduler_run_now(job_id: int):
+        from app.marketing import scheduler as sched_mod
+        return ok(sched_mod.run_now(job_id))
+
+    @app.route("/api/scheduler/jobs/<int:job_id>/approve", methods=["POST"])
+    def api_scheduler_approve(job_id: int):
+        from app.marketing import scheduler as sched_mod
+        return ok(sched_mod.approve(job_id))
+
+    @app.route("/api/scheduler/jobs/<int:job_id>", methods=["DELETE"])
+    def api_scheduler_cancel(job_id: int):
+        from app.marketing import scheduler as sched_mod
+        return ok({"cancelled": sched_mod.cancel(job_id)})
+
+    @app.route("/api/publishers", methods=["GET"])
+    def api_publishers_list():
+        from app import publisher as publisher_mod
+        return ok({"publishers": publisher_mod.list_publishers()})
+
+    @app.route("/api/publishers/dispatch", methods=["POST"])
+    def api_publishers_dispatch():
+        from app import outputs as outputs_mod
+        from app import publisher as publisher_mod
+        body = request.get_json(silent=True) or {}
+        try:
+            output_id = int(body.get("output_id") or 0)
+        except (TypeError, ValueError):
+            return err("output_id required", code=400)
+        out = outputs_mod.get_output(output_id)
+        if not out:
+            return err("output not found", code=404)
+        platform = str(body.get("platform") or "instagram")
+        preferred = body.get("preferred")
+        result = publisher_mod.dispatch(out, platform, preferred=preferred)
+        return ok({"publisher": result})
+
+    @app.route("/api/telegram/webhook", methods=["POST"])
+    def api_telegram_webhook():
+        from app import telegram_notify as tg
+        from app.marketing import scheduler as sched_mod
+        body = request.get_json(silent=True) or {}
+        callback = body.get("callback_query") or {}
+        data = str(callback.get("data") or "")
+        message = callback.get("message") or {}
+        chat_id = (message.get("chat") or {}).get("id")
+        # Map the output_id from the callback back to the queued job.
+        try:
+            output_id = int(data.split(":", 1)[1])
+        except (IndexError, ValueError):
+            output_id = None
+        decision = tg.handle_callback(data, job_id=output_id)
+        job_action = "noop"
+        if output_id and decision in ("approved", "rejected"):
+            # Find the most recent queued/blocked job for this output.
+            conn = app_db.get_conn()
+            row = conn.execute(
+                "SELECT id FROM scheduled_jobs WHERE payload_json LIKE ? "
+                "AND status IN ('queued','blocked') ORDER BY id DESC LIMIT 1",
+                (f'%"output_id": {output_id}%',),
+            ).fetchone()
+            if row:
+                if decision == "approved":
+                    sched_mod.approve(int(row[0]))
+                    sched_mod.run_now(int(row[0]))
+                    job_action = "approved_and_dispatched"
+                else:
+                    sched_mod.cancel(int(row[0]))
+                    job_action = "rejected"
+        return ok({"decision": decision, "job_action": job_action, "chat_id": chat_id})
+
 
 # ---------- SPA static fallback ----------
 
@@ -1814,6 +2771,7 @@ def _register_spa_fallback(app: Flask) -> None:
         blocked_prefixes = (
             "api/", "static/", "outputs/", "references/file/",
             "generate/", "drafts/", "brand/", "settings/", "health",
+            "assets/", "favicon",
         )
         first_segment = path.split("/", 1)[0] if path else ""
         if first_segment in blocked_prefixes:

@@ -201,3 +201,175 @@ export type Extension = {
   signed: boolean;
   enabled: boolean;
 };
+
+// ----- Phase A: Brand-poster templates, products, filters, render -----
+
+export type AspectRatio = "1:1" | "4:5" | "9:16" | "16:9";
+
+export type LayerType =
+  | "ai_background"
+  | "ai_image"
+  | "product_cutout"
+  | "text"
+  | "image"
+  | "shape"
+  | "video_background";
+
+export interface LayerConfigText {
+  content: string;
+  font_family?: string;
+  font_size?: number;
+  color?: string;
+  background_color?: string;
+  padding?: number;
+  border_radius?: number;
+  text_align?: "left" | "center" | "right";
+  text_transform?: "none" | "uppercase" | "lowercase" | "capitalize";
+  letter_spacing?: number;
+  line_height?: number;
+  font_weight?: "normal" | "bold" | "light";
+  text_shadow?: {
+    color: string;
+    blur: number;
+    offset_x: number;
+    offset_y: number;
+  };
+}
+
+export interface LayerConfigBackground {
+  prompt: string;
+  negative_prompt?: string;
+  model?: string;
+  seed?: number;
+}
+
+export interface LayerConfigProduct {
+  slot?: "center" | "left" | "right" | "top" | "bottom" | "custom";
+  auto_cutout?: boolean;
+  shadow?: boolean;
+  shadow_color?: string;
+  shadow_blur?: number;
+  shadow_offset_x?: number;
+  shadow_offset_y?: number;
+  max_width_percent?: number;
+  max_height_percent?: number;
+}
+
+export interface LayerConfigImage {
+  src?: string;
+  object_fit?: "cover" | "contain" | "fill";
+  border_radius?: number;
+  border_width?: number;
+  border_color?: string;
+}
+
+export interface LayerConfigShape {
+  shape_type: "rectangle" | "circle" | "line";
+  fill_color?: string;
+  stroke_color?: string;
+  stroke_width?: number;
+}
+
+export interface LayerConfigVideo {
+  prompt: string;
+  model: "fal_video" | "minimax_h3" | "comfyui";
+  duration: number;
+  loop: boolean;
+}
+
+export type LayerConfig =
+  | LayerConfigBackground
+  | LayerConfigProduct
+  | LayerConfigText
+  | LayerConfigImage
+  | LayerConfigShape
+  | LayerConfigVideo;
+
+export interface TemplateLayer {
+  id: string;
+  type: LayerType;
+  name: string;
+  visible?: boolean;
+  locked?: boolean;
+  blend_mode?: "normal" | "multiply" | "screen" | "overlay" | "soft_light";
+  opacity?: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  config: LayerConfig;
+}
+
+export interface Template {
+  id?: number | string;
+  name: string;
+  category?: string;
+  aspect_ratio: AspectRatio;
+  canvas: { width: number; height: number };
+  safe_zones?: { top?: number; bottom?: number; left?: number; right?: number };
+  layers: TemplateLayer[];
+  brand_locks?: string[];
+  default_filter?: string;
+  ai_prompt_template?: string;
+  preview_path?: string | null;
+  is_builtin?: boolean;
+  is_custom?: boolean;
+  parent_template_id?: number | null;
+  created_at?: number;
+  brand_id?: number | null;
+  canvas_w?: number;
+  canvas_h?: number;
+}
+
+export interface Product {
+  id: number;
+  brand_id: number | null;
+  name: string;
+  price: number | null;
+  category: string | null;
+  collection: string | null;
+  description: string | null;
+  image_path: string | null;
+  cutout_path: string | null;
+  tags: string[];
+  launch_date: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface RenderResult {
+  output_id: number;
+  file_path: string;
+  cost_usd: number;
+  cached_background?: boolean;
+  elapsed_seconds?: number;
+  rel_url?: string | null;
+}
+
+export interface OutputRow {
+  id: number;
+  brand_id: number | null;
+  product_id: number | null;
+  template_id: number | null;
+  type: string;
+  file_path: string;
+  aspect_ratio: string | null;
+  filter_applied: string | null;
+  status: string;
+  cost_usd: number;
+  created_at: number;
+  rel_url?: string | null;
+}
+
+export interface FilterPreset {
+  name: string;
+  settings: Record<string, number>;
+}
+
+export interface UserFilterPreset {
+  id: number;
+  brand_id: number | null;
+  name: string;
+  settings: Record<string, number>;
+}

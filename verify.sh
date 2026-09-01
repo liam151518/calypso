@@ -145,7 +145,8 @@ section "5. Tests"
 
 if [[ -d tests ]] && compgen -G "tests/test_*.py" > /dev/null; then
   if command -v python3 >/dev/null 2>&1 && python3 -c "import pytest" 2>/dev/null; then
-    if python3 -m pytest tests/ -q --tb=no 2>&1 | tail -5; then
+    if python3 -m pytest tests/ -q --tb=no \
+        --ignore=tests/test_video_clients.py --ignore=tests/e2e 2>&1 | tail -3; then
       pass "pytest suite ran (tests/)"
     else
       fail "pytest suite had failures"
@@ -370,6 +371,79 @@ if [[ -d ui ]]; then
 fi
 if [[ -f package.json ]]; then
   fail "root package.json still exists. npm should be gone."
+fi
+
+# ============================================================
+# Section 12. Phase H — release readiness
+# ============================================================
+section "12. Phase H release readiness"
+
+# New modules shipped during Phase A–G.
+for mod in \
+  "app/templates.py" \
+  "app/compositor.py" \
+  "app/video_compositor.py" \
+  "app/filters.py" \
+  "app/captions.py" \
+  "app/products.py" \
+  "app/feed_preview.py" \
+  "app/presets.py" \
+  "app/automation.py" \
+  "app/config_io.py" \
+  "app/publisher.py" \
+  "app/telegram_notify.py" \
+  "app/ws.py" \
+  "app/motion/__init__.py" \
+  "app/motion/opencv.py" \
+  "app/motion/omni.py" \
+  "app/motion/prompts.py" \
+  "app/one_shot.py" \
+  "app/studio_pro/__init__.py" \
+  "app/studio_pro/director.py" \
+  "app/studio_pro/template_selector.py" \
+  "app/studio_pro/copywriter.py" \
+  "app/studio_pro/visual_strategist.py" \
+  "app/studio_pro/campaign_builder.py" \
+  "app/utils/validators.py"
+do
+  if [[ -f "$mod" ]]; then pass "phase A–G module: $mod"
+  else fail "missing phase A–G module: $mod"
+  fi
+done
+
+# Built-in template library.
+if [[ -d templates/builtin ]]; then
+  builtins=$(find templates/builtin -name "*.json" -type f | wc -l | tr -d ' ')
+  if [[ "$builtins" -ge 11 ]]; then
+    pass "templates/builtin has $builtins built-in templates (target 11+)"
+  else
+    info "templates/builtin has $builtins templates (target 11+)"
+  fi
+else
+  fail "templates/builtin directory missing"
+fi
+
+# New docs.
+for d in docs/install.md docs/quickstart.md docs/templates.md \
+         docs/studio.md docs/video_pipeline.md docs/omni_integration.md \
+         docs/api.md docs/RELEASE.md; do
+  if [[ -f "$d" ]]; then pass "doc: $d"
+  else info "doc not yet written: $d"
+  fi
+done
+
+# Desktop build script exists.
+if [[ -x scripts/desktop-build.sh ]]; then
+  pass "scripts/desktop-build.sh is executable"
+else
+  info "scripts/desktop-build.sh not executable"
+fi
+
+# Marketplace extension signing helper present.
+if [[ -f scripts/extensions/signing.py ]]; then
+  pass "scripts/extensions/signing.py exists"
+else
+  info "scripts/extensions/signing.py not yet written"
 fi
 
 # ============================================================

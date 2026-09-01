@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Iterator
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CALYPSO_DIR = PROJECT_ROOT / ".calypso"
@@ -226,6 +227,230 @@ SCHEMA: list[str] = [
     """,
     "CREATE INDEX IF NOT EXISTS idx_pipeline_runs_pipeline ON pipeline_runs(pipeline_id)",
     "CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status)",
+
+    # ---- Phase G+: Brand DNA v2 (parallel to brand_profiles; new write path) ----
+    # Keeps brand_profiles intact for back-compat; app.brand writes through.
+    """
+    CREATE TABLE IF NOT EXISTS brands (
+        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+        name                 TEXT NOT NULL UNIQUE,
+        tagline              TEXT,
+        audience             TEXT,
+        palette_json         TEXT NOT NULL DEFAULT '[]',
+        typography           TEXT,
+        fonts_json           TEXT NOT NULL DEFAULT '{}',
+        voice                TEXT,
+        voice_tone           TEXT,
+        banned_words_json    TEXT NOT NULL DEFAULT '[]',
+        emoji_policy         TEXT,
+        do_examples          TEXT,
+        dont_examples        TEXT,
+        style_guide          TEXT,
+        logo_path            TEXT,
+        watermark_path       TEXT,
+        default_filter       TEXT,
+        default_aspect_ratio TEXT,
+        brand_profile_id     INTEGER,
+        created_at           REAL NOT NULL,
+        updated_at           REAL NOT NULL
+    )
+    """,
+
+    # ---- Phase A: Product catalog + variants ----
+    """
+    CREATE TABLE IF NOT EXISTS products (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        brand_id      INTEGER,
+        name          TEXT NOT NULL,
+        price         REAL,
+        category      TEXT,
+        collection    TEXT,
+        description   TEXT,
+        image_path    TEXT,
+        cutout_path   TEXT,
+        tags_json     TEXT NOT NULL DEFAULT '[]',
+        launch_date   TEXT,
+        created_at    REAL NOT NULL,
+        updated_at    REAL NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id)",
+
+    """
+    CREATE TABLE IF NOT EXISTS product_variants (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id   INTEGER NOT NULL,
+        variant_name TEXT NOT NULL,
+        sku          TEXT,
+        price_delta  REAL NOT NULL DEFAULT 0,
+        image_path   TEXT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_product_variants_product ON product_variants(product_id)",
+
+    # ---- Phase A: Templates (JSON layer stacks) ----
+    """
+    CREATE TABLE IF NOT EXISTS templates (
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        brand_id            INTEGER,
+        name                TEXT NOT NULL,
+        category            TEXT,
+        aspect_ratio        TEXT NOT NULL DEFAULT '4:5',
+        canvas_w            INTEGER NOT NULL DEFAULT 1080,
+        canvas_h            INTEGER NOT NULL DEFAULT 1350,
+        layers_json         TEXT NOT NULL DEFAULT '[]',
+        scenes_json         TEXT NOT NULL DEFAULT '[]',
+        transitions_json    TEXT NOT NULL DEFAULT '[]',
+        audio_track_json    TEXT,
+        duration_s          INTEGER NOT NULL DEFAULT 0,
+        fps                 INTEGER NOT NULL DEFAULT 30,
+        format              TEXT NOT NULL DEFAULT 'image',
+        brand_locks_json    TEXT NOT NULL DEFAULT '[]',
+        default_filter      TEXT,
+        ai_prompt_template  TEXT,
+        preview_path        TEXT,
+        is_builtin          INTEGER NOT NULL DEFAULT 0,
+        is_custom           INTEGER NOT NULL DEFAULT 1,
+        parent_template_id  INTEGER,
+        created_at          REAL NOT NULL,
+        FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL,
+        FOREIGN KEY (parent_template_id) REFERENCES templates(id) ON DELETE SET NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_templates_brand ON templates(brand_id)",
+    "CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category)",
+
+    # ---- Phase G: Presets ----
+    """
+    CREATE TABLE IF NOT EXISTS presets (
+        id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+        brand_id                INTEGER,
+        name                    TEXT NOT NULL,
+        description             TEXT,
+        template_id             INTEGER,
+        layers_json             TEXT NOT NULL DEFAULT '[]',
+        filter                  TEXT,
+        caption_template        TEXT,
+        schedule_settings_json  TEXT NOT NULL DEFAULT '{}',
+        product_filter_json     TEXT NOT NULL DEFAULT '{}',
+        created_at              REAL NOT NULL,
+        FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL,
+        FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_presets_brand ON presets(brand_id)",
+
+    # ---- Phase A: Outputs (rendered brand-poster images/videos) ----
+    """
+    CREATE TABLE IF NOT EXISTS outputs (
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        brand_id            INTEGER,
+        product_id          INTEGER,
+        template_id         INTEGER,
+        preset_id           INTEGER,
+        type                TEXT NOT NULL DEFAULT 'image',
+        file_path           TEXT NOT NULL,
+        aspect_ratio        TEXT,
+        file_size_bytes     INTEGER,
+        filter_applied      TEXT,
+        caption             TEXT,
+        hashtags            TEXT,
+        first_comment       TEXT,
+        alt_text            TEXT,
+        platform            TEXT,
+        status              TEXT NOT NULL DEFAULT 'draft',
+        scheduled_at        REAL,
+        published_at        REAL,
+        external_id         TEXT,
+        external_url        TEXT,
+        auto_approve        INTEGER NOT NULL DEFAULT 1,
+        engagement_stats_json TEXT NOT NULL DEFAULT '{}',
+        cost_usd            REAL NOT NULL DEFAULT 0,
+        created_at          REAL NOT NULL,
+        FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+        FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL,
+        FOREIGN KEY (preset_id) REFERENCES presets(id) ON DELETE SET NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_outputs_status_scheduled ON outputs(status, scheduled_at)",
+    "CREATE INDEX IF NOT EXISTS idx_outputs_brand_created ON outputs(brand_id, created_at DESC)",
+
+    # ---- Phase G: Automation rules ----
+    """
+    CREATE TABLE IF NOT EXISTS automation_rules (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        brand_id        INTEGER,
+        name            TEXT NOT NULL,
+        trigger         TEXT NOT NULL,
+        conditions_json TEXT NOT NULL DEFAULT '[]',
+        action_json     TEXT NOT NULL DEFAULT '{}',
+        is_active       INTEGER NOT NULL DEFAULT 1,
+        last_run        REAL,
+        created_at      REAL NOT NULL,
+        FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_automation_rules_active ON automation_rules(is_active)",
+
+    # ---- Phase C: Caption history ----
+    """
+    CREATE TABLE IF NOT EXISTS captions (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        output_id     INTEGER,
+        variant_index INTEGER NOT NULL,
+        content       TEXT NOT NULL,
+        hashtags      TEXT,
+        first_comment TEXT,
+        alt_text      TEXT,
+        is_selected   INTEGER NOT NULL DEFAULT 0,
+        cache_key     TEXT,
+        expires_at    REAL,
+        brand_id      INTEGER,
+        template_id   INTEGER,
+        product_id    INTEGER,
+        platform      TEXT,
+        created_at    REAL NOT NULL,
+        FOREIGN KEY (output_id) REFERENCES outputs(id) ON DELETE CASCADE
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_captions_output ON captions(output_id)",
+    # NOTE: idx_captions_cache_key is created by the migration block
+    # below after the cache_key column has been added to legacy DBs.
+
+    # ---- Phase A: Filter presets (built-in + user) ----
+    """
+    CREATE TABLE IF NOT EXISTS filter_presets (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        brand_id    INTEGER,
+        name        TEXT NOT NULL,
+        settings_json TEXT NOT NULL DEFAULT '{}',
+        is_builtin  INTEGER NOT NULL DEFAULT 0,
+        created_at  REAL NOT NULL,
+        FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_filter_presets_brand_name ON filter_presets(IFNULL(brand_id, 0), name)",
+
+    # ---- Phase F: Studio Pro suggestions ----
+    """
+    CREATE TABLE IF NOT EXISTS studio_suggestions (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        brand_id          INTEGER,
+        brief             TEXT NOT NULL,
+        product_id        INTEGER,
+        platform          TEXT,
+        suggestion_json   TEXT NOT NULL DEFAULT '[]',
+        confidence_score  REAL,
+        was_accepted      INTEGER,
+        log_json          TEXT NOT NULL DEFAULT '[]',
+        created_at        REAL NOT NULL,
+        FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_studio_suggestions_brand_created ON studio_suggestions(brand_id, created_at DESC)",
 ]
 
 
@@ -237,6 +462,85 @@ def init_db(path: Path | None = None) -> Path:
     try:
         for stmt in SCHEMA:
             conn.execute(stmt)
+        # Idempotent column migrations for the templates table.
+        _existing_cols = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(templates)").fetchall()
+        }
+        if "scenes_json" not in _existing_cols:
+            conn.execute(
+                "ALTER TABLE templates ADD COLUMN scenes_json TEXT NOT NULL DEFAULT '[]'"
+            )
+        if "transitions_json" not in _existing_cols:
+            conn.execute(
+                "ALTER TABLE templates ADD COLUMN transitions_json TEXT NOT NULL DEFAULT '[]'"
+            )
+        if "audio_track_json" not in _existing_cols:
+            conn.execute(
+                "ALTER TABLE templates ADD COLUMN audio_track_json TEXT"
+            )
+        if "duration_s" not in _existing_cols:
+            conn.execute(
+                "ALTER TABLE templates ADD COLUMN duration_s INTEGER NOT NULL DEFAULT 0"
+            )
+        if "fps" not in _existing_cols:
+            conn.execute(
+                "ALTER TABLE templates ADD COLUMN fps INTEGER NOT NULL DEFAULT 30"
+            )
+        if "format" not in _existing_cols:
+            conn.execute(
+                "ALTER TABLE templates ADD COLUMN format TEXT NOT NULL DEFAULT 'image'"
+            )
+        # Phase F — Studio Pro: track suggestion runs and rationale.
+        _ss_cols = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(studio_suggestions)").fetchall()
+        }
+        if "run_id" not in _ss_cols:
+            conn.execute("ALTER TABLE studio_suggestions ADD COLUMN run_id TEXT")
+        if "template_id" not in _ss_cols:
+            conn.execute("ALTER TABLE studio_suggestions ADD COLUMN template_id INTEGER")
+        if "layer_overrides_json" not in _ss_cols:
+            conn.execute(
+                "ALTER TABLE studio_suggestions ADD COLUMN layer_overrides_json TEXT"
+            )
+        if "rationale_json" not in _ss_cols:
+            conn.execute(
+                "ALTER TABLE studio_suggestions ADD COLUMN rationale_json TEXT"
+            )
+        if "cost_usd" not in _ss_cols:
+            conn.execute(
+                "ALTER TABLE studio_suggestions ADD COLUMN cost_usd REAL NOT NULL DEFAULT 0"
+            )
+        if "status" not in _ss_cols:
+            conn.execute(
+                "ALTER TABLE studio_suggestions ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'"
+            )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_studio_suggestions_run "
+            "ON studio_suggestions(run_id)"
+        )
+        # Captions table — cache_key + expires_at were added later.
+        _cap_cols = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(captions)").fetchall()
+        }
+        if "cache_key" not in _cap_cols:
+            conn.execute("ALTER TABLE captions ADD COLUMN cache_key TEXT")
+        if "expires_at" not in _cap_cols:
+            conn.execute(
+                "ALTER TABLE captions ADD COLUMN expires_at REAL"
+            )
+        # Now that the column is guaranteed to exist, create the unique
+        # index. The CREATE UNIQUE INDEX IF NOT EXISTS in the SCHEMA list
+        # above assumes a fresh DB; for legacy DBs we have to defer this.
+        try:
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_captions_cache_key "
+                "ON captions(cache_key)"
+            )
+        except Exception:  # noqa: BLE001
+            pass
         conn.commit()
     finally:
         conn.close()
@@ -269,3 +573,24 @@ def reset_for_tests(path: Path) -> None:
         except Exception:
             pass
         delattr(_local, cache_attr)
+
+
+@contextmanager
+def connect(path: Path | None = None) -> Iterator[sqlite3.Connection]:
+    """Context-manager wrapper around :func:`get_conn` for ergonomic `with` blocks.
+
+    The underlying connection is thread-local and pooled by ``get_conn``, so
+    callers can use ``with app_db.connect() as c:`` without worrying about
+    explicit close calls. The ``with`` block commits on success and rolls
+    back on exception via the connection's ``__exit__`` semantics; the
+    pooled connection itself is left open.
+    """
+    conn = get_conn(path)
+    try:
+        yield conn
+    except Exception:
+        try:
+            conn.execute("ROLLBACK")
+        except sqlite3.Error:
+            pass
+        raise

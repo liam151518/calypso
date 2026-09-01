@@ -297,3 +297,337 @@ export type ImageOutputItem = {
   num_images: number;
   cost_usd: number | null;
 };
+
+// ----- Phase A: Brand-poster surface -----
+
+export const brandPoster = {
+  // Templates
+  listTemplates: (params?: { brand_id?: number; category?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.brand_id) qs.set("brand_id", String(params.brand_id));
+    if (params?.category) qs.set("category", params.category);
+    const q = qs.toString();
+    return call<
+      Ok<{
+        templates: import("./types").Template[];
+        aspect_ratios: string[];
+        layer_types: string[];
+      }>
+    >(`/api/templates${q ? `?${q}` : ""}`);
+  },
+  getTemplate: (id: number) =>
+    call<Ok<{ template: import("./types").Template }>>(`/api/templates/${id}`),
+  createTemplate: (data: Partial<import("./types").Template>) =>
+    call<Ok<{ template_id: number }>>(`/api/templates`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateTemplate: (id: number, data: Partial<import("./types").Template>, force = false) =>
+    call<Ok<{ updated: boolean }>>(`/api/templates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ ...data, force }),
+    }),
+  deleteTemplate: (id: number, force = false) =>
+    call<Ok<{ deleted: boolean }>>(`/api/templates/${id}?force=${force ? 1 : 0}`, {
+      method: "DELETE",
+    }),
+  duplicateTemplate: (id: number, name: string) =>
+    call<Ok<{ template_id: number }>>(`/api/templates/${id}/duplicate`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  bootBuiltins: () =>
+    call<Ok<{ inserted: number }>>(`/api/templates/boot-builtins`, {
+      method: "POST",
+    }),
+
+  // Products
+  listProducts: (params?: { brand_id?: number; category?: string; collection?: string; tag?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.brand_id) qs.set("brand_id", String(params.brand_id));
+    if (params?.category) qs.set("category", params.category);
+    if (params?.collection) qs.set("collection", params.collection);
+    if (params?.tag) qs.set("tag", params.tag);
+    const q = qs.toString();
+    return call<Ok<{ products: import("./types").Product[] }>>(`/api/products${q ? `?${q}` : ""}`);
+  },
+  getProduct: (id: number) =>
+    call<Ok<{ product: import("./types").Product; variants: unknown[] }>>(`/api/products/${id}`),
+  createProduct: (data: Partial<import("./types").Product>) =>
+    call<Ok<{ product_id: number }>>(`/api/products`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateProduct: (id: number, data: Partial<import("./types").Product>) =>
+    call<Ok<{ updated: boolean }>>(`/api/products/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteProduct: (id: number) =>
+    call<Ok<{ deleted: boolean }>>(`/api/products/${id}`, { method: "DELETE" }),
+  importProducts: (data: { brand_id?: number; rows?: unknown[]; csv?: string }) =>
+    call<Ok<{ imported: number; skipped: number; errors: string[] }>>(`/api/products/import`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  requestCutout: (id: number, regenerate = false) =>
+    call<Ok<{ cutout_path: string }>>(`/api/products/${id}/cutout?regenerate=${regenerate ? 1 : 0}`, {
+      method: "POST",
+    }),
+
+  // Filters
+  listFilters: () =>
+    call<
+      Ok<{
+        presets: import("./types").FilterPreset[];
+        user: import("./types").UserFilterPreset[];
+      }>
+    >(`/api/filters`),
+  previewFilter: (image_path: string, settings: Record<string, number>) =>
+    call<Ok<{ preview_path: string }>>(`/api/filters/preview`, {
+      method: "POST",
+      body: JSON.stringify({ image_path, settings }),
+    }),
+
+  // Render
+  render: (data: {
+    template_id: number;
+    product_id?: number | null;
+    filter?: string;
+    aspect_ratio?: string;
+    intensity?: number;
+    layer_overrides?: Record<string, unknown>;
+    brand_id?: number | null;
+  }) =>
+    call<Ok<import("./types").RenderResult>>(`/api/render`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  renderBatch: (data: {
+    template_id: number;
+    product_ids: number[];
+    filter?: string;
+    intensity?: number;
+  }) =>
+    call<
+      Ok<{ renders: import("./types").RenderResult[] }>
+    >(`/api/render/batch`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Outputs gallery
+  listImageOutputs: () =>
+    call<Ok<{ outputs: import("./types").OutputRow[] }>>(`/api/outputs/images`),
+};
+
+export const video = {
+  listTemplates: () =>
+    call<Ok<{ templates: { name: string; template: Record<string, unknown> }[] }>>(
+      `/api/video/templates`,
+    ),
+  render: (data: {
+    template_id: number;
+    product_id?: number | null;
+    brand_id?: number | null;
+    audio_track?: { path: string } | null;
+  }) =>
+    call<Ok<{
+      output_id: number;
+      file_path: string;
+      rel_url: string | null;
+      duration_s: number;
+      cost_usd: number;
+      elapsed_seconds: number;
+    }>>(`/api/video/render`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  oneShot: (data: {
+    brief: string;
+    product_id: number;
+    template_id?: number | null;
+    duration_s?: number;
+    brand?: Record<string, unknown>;
+  }) =>
+    call<Ok<{
+      output_id: number;
+      file_path: string;
+      rel_url: string | null;
+      duration_s: number;
+      cost_usd: number;
+      elapsed_seconds: number;
+    }>>(`/api/video/one-shot`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
+
+// ----- Phase F: Studio Pro -----
+
+export interface StudioProSuggestion {
+  id?: number;
+  template_id: number | null;
+  layer_overrides: Record<string, unknown>;
+  rationale: string;
+  platforms: string[];
+  duration_s?: number | null;
+  cost_usd: number;
+  confidence_score: number;
+}
+
+export interface StudioProAgentLog {
+  agent: string;
+  started_at?: number;
+  finished_at?: number;
+  status: "running" | "ok" | "error";
+  outputs?: string[];
+  note?: string;
+  error?: string;
+}
+
+export interface StudioProBrief {
+  brief: string;
+  product_id: number | null;
+  brand_id: number | null;
+  platforms: string[];
+  budget_usd: number;
+  audience?: string | null;
+  duration_s?: number | null;
+}
+
+export const studioPro = {
+  generate: (brief: StudioProBrief) =>
+    call<Ok<{
+      run_id: string;
+      suggestions: StudioProSuggestion[];
+      agent_log: StudioProAgentLog[];
+      spent_usd: number;
+      started_at: number;
+      finished_at: number;
+    }>>(`/api/studio-pro/generate`, {
+      method: "POST",
+      body: JSON.stringify(brief),
+    }),
+  log: (runId: string) =>
+    call<Ok<{
+      run_id: string;
+      suggestions: Array<StudioProSuggestion & { id: number }>;
+    }>>(`/api/studio-pro/${encodeURIComponent(runId)}/log`),
+  accept: (suggestionId: number, body: { product_id: number | null; brand_id: number | null }) =>
+    call<Ok<{
+      suggestion_id: number;
+      output_id: number;
+      editor_url: string;
+      file_path: string;
+    }>>(`/api/studio-pro/${suggestionId}/accept`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  schedule: (
+    suggestionId: number,
+    body: { run_at: number; platform?: string }
+  ) =>
+    call<Ok<{ suggestion_id: number; job_id: number }>>(
+      `/api/studio-pro/${suggestionId}/schedule`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    ),
+};
+
+// ----- Phase G: presets, automation, config -----
+
+export interface Preset {
+  id: number;
+  brand_id: number | null;
+  name: string;
+  description: string | null;
+  template_id: number | null;
+  filter: string | null;
+  caption_template: string | null;
+  layers: Array<Record<string, unknown>>;
+  product_filter: Record<string, unknown>;
+  schedule_settings: Record<string, unknown>;
+  created_at: number;
+}
+
+export interface AutomationRule {
+  id: number;
+  brand_id: number | null;
+  name: string;
+  trigger: string;
+  conditions: Array<{ field: string; op: string; value: unknown }>;
+  action: { kind: string; [k: string]: unknown };
+  is_active: boolean;
+  last_run: number | null;
+  created_at: number;
+}
+
+export const phaseG = {
+  listPresets: (brandId?: number | null) => {
+    const qs = brandId ? `?brand_id=${brandId}` : "";
+    return call<Ok<{ presets: Preset[] }>>(`/api/presets${qs}`);
+  },
+  createPreset: (body: {
+    brand_id: number | null;
+    name: string;
+    description?: string | null;
+    template_id?: number | null;
+    filter?: string | null;
+    product_filter?: Record<string, unknown>;
+  }) =>
+    call<Ok<{ preset_id: number }>>("/api/presets", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deletePreset: (id: number) =>
+    call<Ok<{ deleted: boolean }>>(`/api/presets/${id}`, {
+      method: "DELETE",
+    }),
+  applyPreset: (presetId: number, productIds: number[]) =>
+    call<Ok<{ queued: number; output_ids: number[]; errors: string[] }>>(
+      `/api/presets/${presetId}/apply`,
+      {
+        method: "POST",
+        body: JSON.stringify({ product_ids: productIds }),
+      }
+    ),
+  listAutomationRules: (brandId?: number | null) => {
+    const qs = brandId ? `?brand_id=${brandId}` : "";
+    return call<Ok<{ rules: AutomationRule[] }>>(
+      `/api/automation/rules${qs}`
+    );
+  },
+  createAutomationRule: (body: {
+    brand_id: number | null;
+    name: string;
+    trigger: string;
+    conditions: AutomationRule["conditions"];
+    action: AutomationRule["action"];
+    is_active?: boolean;
+  }) =>
+    call<Ok<{ rule_id: number }>>("/api/automation/rules", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  toggleAutomationRule: (id: number, isActive: boolean) =>
+    call<Ok<{ rule: AutomationRule }>>(
+      `/api/automation/rules/${id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ is_active: isActive }),
+      }
+    ),
+  deleteAutomationRule: (id: number) =>
+    call<Ok<{ deleted: boolean }>>(`/api/automation/rules/${id}`, {
+      method: "DELETE",
+    }),
+  exportConfig: () => call<Ok<{ config: unknown }>>("/api/config/export"),
+  importConfig: (config: unknown, merge = true) =>
+    call<Ok<{ imported: Record<string, number> }>>("/api/config/import", {
+      method: "POST",
+      body: JSON.stringify({ config, merge }),
+    }),
+};

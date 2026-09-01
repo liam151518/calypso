@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Calendar,
   Globe,
@@ -55,6 +55,16 @@ type SocialPost = {
   char_limit: number;
   over_limit: boolean;
 };
+
+type ScheduledJob = {
+  id: number;
+  name: string;
+  kind: string;
+  status: string;
+  run_at: number;
+};
+
+type AnalyticsEntry = { count: number; sum: number };
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof Users }> = [
   { id: "contacts", label: "Contacts", icon: Users },
@@ -116,30 +126,57 @@ export function MarketingPage() {
   );
 }
 
+async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    ...init,
+  });
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    try {
+      const j = await res.json();
+      if (j?.error) msg = j.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(msg);
+  }
+  return (await res.json()) as T;
+}
+
 function ContactsTab() {
   const [items, setItems] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [consent, setConsent] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
+    setError(null);
     try {
-      const r = await fetch("/api/contacts");
-      const j = await r.json();
+      const j = await fetchJSON<{ contacts: Contact[] }>("/api/contacts");
       setItems(j.contacts ?? []);
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setLoading(false);
     }
   }
 
+  useEffect(() => {
+    void refresh();
+  }, []);
+
   async function add() {
     if (!email.includes("@")) return;
-    await fetch("/api/contacts", {
+    await fetchJSON("/api/contacts", {
       method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email,
         first_name: firstName,
@@ -148,22 +185,25 @@ function ContactsTab() {
     });
     setEmail("");
     setFirstName("");
-    refresh();
+    void refresh();
   }
 
   async function remove(id: number) {
-    await fetch(`/api/contacts/${id}`, { method: "DELETE" });
-    refresh();
+    await fetchJSON(`/api/contacts/${id}`, { method: "DELETE" });
+    void refresh();
   }
 
-  // First render
   if (loading && items.length === 0) {
-    refresh();
     return <div className="text-sm text-muted-foreground">Loading…</div>;
   }
 
   return (
     <div className="space-y-4">
+      {error ? (
+        <Card className="p-3 text-sm text-destructive" data-testid="contact-error">
+          {error}
+        </Card>
+      ) : null}
       <Card className="space-y-2 p-4">
         <h3 className="text-sm font-medium">Add a contact</h3>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
@@ -255,42 +295,55 @@ function ContactsTab() {
 
 function CampaignsTab() {
   const [items, setItems] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
 
   async function refresh() {
-    const r = await fetch("/api/campaigns");
-    const j = await r.json();
-    setItems(j.campaigns ?? []);
+    setLoading(true);
+    setError(null);
+    try {
+      const j = await fetchJSON<{ campaigns: Campaign[] }>("/api/campaigns");
+      setItems(j.campaigns ?? []);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
 
   async function create() {
     if (!name) return;
-    await fetch("/api/campaigns", {
+    await fetchJSON("/api/campaigns", {
       method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, subject, body_html: body }),
     });
     setName("");
     setSubject("");
     setBody("");
-    refresh();
+    void refresh();
   }
 
   async function send(id: number) {
-    await fetch(`/api/campaigns/${id}/send`, {
-      method: "POST",
-      credentials: "same-origin",
-    });
-    refresh();
+    await fetchJSON(`/api/campaigns/${id}/send`, { method: "POST" });
+    void refresh();
   }
 
-  if (items.length === 0) refresh();
+  if (loading && items.length === 0) {
+    return <div className="text-sm text-muted-foreground">Loading…</div>;
+  }
 
   return (
     <div className="space-y-4">
+      {error ? (
+        <Card className="p-3 text-sm text-destructive">{error}</Card>
+      ) : null}
       <Card className="space-y-2 p-4">
         <h3 className="text-sm font-medium">New campaign</h3>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -346,32 +399,50 @@ function CampaignsTab() {
 
 function PagesTab() {
   const [items, setItems] = useState<LandingPage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [slug, setSlug] = useState("");
   const [title, setTitle] = useState("");
   const [consent, setConsent] = useState("");
 
   async function refresh() {
-    const r = await fetch("/api/pages");
-    const j = await r.json();
-    setItems(j.pages ?? []);
+    setLoading(true);
+    setError(null);
+    try {
+      const j = await fetchJSON<{ pages: LandingPage[] }>("/api/pages");
+      setItems(j.pages ?? []);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
   async function create() {
     if (!title) return;
-    await fetch("/api/pages", {
+    await fetchJSON("/api/pages", {
       method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ slug: slug || title, title, consent_text: consent }),
     });
     setSlug("");
     setTitle("");
     setConsent("");
-    refresh();
+    void refresh();
   }
-  if (items.length === 0) refresh();
+
+  if (loading && items.length === 0) {
+    return <div className="text-sm text-muted-foreground">Loading…</div>;
+  }
 
   return (
     <div className="space-y-4">
+      {error ? (
+        <Card className="p-3 text-sm text-destructive">{error}</Card>
+      ) : null}
       <Card className="space-y-2 p-4">
         <h3 className="text-sm font-medium">New landing page</h3>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
@@ -418,29 +489,47 @@ function PagesTab() {
 
 function SocialTab() {
   const [items, setItems] = useState<SocialPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [platform, setPlatform] = useState("x");
   const [body, setBody] = useState("");
 
   async function refresh() {
-    const r = await fetch("/api/social");
-    const j = await r.json();
-    setItems(j.posts ?? []);
+    setLoading(true);
+    setError(null);
+    try {
+      const j = await fetchJSON<{ posts: SocialPost[] }>("/api/social");
+      setItems(j.posts ?? []);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
   async function create() {
     if (!body) return;
-    await fetch("/api/social", {
+    await fetchJSON("/api/social", {
       method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ platform, body }),
     });
     setBody("");
-    refresh();
+    void refresh();
   }
-  if (items.length === 0) refresh();
+
+  if (loading && items.length === 0) {
+    return <div className="text-sm text-muted-foreground">Loading…</div>;
+  }
 
   return (
     <div className="space-y-4">
+      {error ? (
+        <Card className="p-3 text-sm text-destructive">{error}</Card>
+      ) : null}
       <Card className="space-y-2 p-4">
         <h3 className="text-sm font-medium">New post</h3>
         <div className="flex gap-2">
@@ -489,21 +578,33 @@ function SocialTab() {
 }
 
 function SchedulerTab() {
-  const [items, setItems] = useState<Array<{ id: number; name: string; kind: string; status: string; run_at: number }>>([]);
+  const [items, setItems] = useState<ScheduledJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [kind, setKind] = useState("send_campaign");
 
   async function refresh() {
-    const r = await fetch("/api/scheduler/jobs");
-    const j = await r.json();
-    setItems(j.jobs ?? []);
+    setLoading(true);
+    setError(null);
+    try {
+      const j = await fetchJSON<{ jobs: ScheduledJob[] }>("/api/scheduler/jobs");
+      setItems(j.jobs ?? []);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
   async function create() {
     if (!name) return;
-    await fetch("/api/scheduler/jobs", {
+    await fetchJSON("/api/scheduler/jobs", {
       method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
         kind,
@@ -511,12 +612,18 @@ function SchedulerTab() {
       }),
     });
     setName("");
-    refresh();
+    void refresh();
   }
-  if (items.length === 0) refresh();
+
+  if (loading && items.length === 0) {
+    return <div className="text-sm text-muted-foreground">Loading…</div>;
+  }
 
   return (
     <div className="space-y-4">
+      {error ? (
+        <Card className="p-3 text-sm text-destructive">{error}</Card>
+      ) : null}
       <Card className="space-y-2 p-4">
         <h3 className="text-sm font-medium">Schedule a job (5s from now)</h3>
         <div className="flex gap-2">
@@ -577,20 +684,37 @@ function SchedulerTab() {
 }
 
 function AnalyticsTab() {
-  const [data, setData] = useState<Record<string, { count: number; sum: number }>>({});
+  const [data, setData] = useState<Record<string, AnalyticsEntry>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(7);
 
-  async function refresh() {
-    const r = await fetch(`/api/analytics/aggregate?days=${days}`);
-    const j = await r.json();
-    setData(j.aggregate ?? {});
+  async function refresh(d: number) {
+    setLoading(true);
+    setError(null);
+    try {
+      const j = await fetchJSON<{ aggregate: Record<string, AnalyticsEntry> }>(
+        `/api/analytics/aggregate?days=${d}`,
+      );
+      setData(j.aggregate ?? {});
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }
-  if (Object.keys(data).length === 0) refresh();
+
+  useEffect(() => {
+    void refresh(days);
+  }, [days]);
 
   const entries = Object.entries(data).filter(([, v]) => v.count > 0);
 
   return (
     <div className="space-y-4">
+      {error ? (
+        <Card className="p-3 text-sm text-destructive">{error}</Card>
+      ) : null}
       <div className="flex items-center gap-2">
         <label className="text-sm">window:</label>
         <Input
@@ -598,16 +722,16 @@ function AnalyticsTab() {
           min={1}
           max={365}
           value={days}
-          onChange={(e) => {
-            setDays(parseInt(e.target.value || "7", 10));
-            refresh();
-          }}
+          onChange={(e) => setDays(parseInt(e.target.value || "7", 10))}
           className="w-24"
         />
         <span className="text-xs text-muted-foreground">days</span>
+        {loading ? (
+          <span className="text-xs text-muted-foreground">loading…</span>
+        ) : null}
       </div>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-        {entries.length === 0 ? (
+        {entries.length === 0 && !loading ? (
           <Card className="col-span-full p-4 text-sm text-muted-foreground">
             No events yet. Send a campaign or schedule a post to start tracking.
           </Card>

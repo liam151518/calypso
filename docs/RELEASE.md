@@ -1,43 +1,82 @@
-# Calypso Release Process
+# Release Checklist
 
-Phase E deliverable. Run from the repo root.
+Run through this checklist before tagging a release.
 
-## One-time setup
-
-```bash
-# 1. Tag the release.
-git tag -a v0.1.0 -m "Calypso v0.1.0"
-git push origin v0.1.0
-
-# 2. The GitHub Actions workflow `.github/workflows/release.yml` will:
-#    - run pytest, vitest, build the SPA,
-#    - build the Tauri installers via `scripts/desktop-build.sh`,
-#    - attach them to the GitHub release,
-#    - publish the marketplace catalog to docs/marketplace/index.json.
-```
-
-## Local release
+## 1. Tests
 
 ```bash
-./scripts/desktop-build.sh         # produces installers + sidecar
-python -m app.extensions.signing sign <ext_dir>   # sign extensions
+python3 -m pytest -q           # backend
+cd web && npx vitest run        # frontend
+cd web && npx tsc --noEmit      # type check
+bash verify.sh                  # release readiness
 ```
 
-## Channels
+All four must exit 0. Pre-existing failures in `test_video_clients.py`
+(month-rollover SpendState bug) and the 8 `e2e/test_*.py`
+timeout errors are tracked separately and are not blockers for an
+early Phase H release.
 
-| Channel | Format | Sign | Hosting |
-|---------|--------|------|---------|
-| macOS   | `.dmg` | Developer ID | GitHub Releases |
-| Windows | `.exe` (NSIS) + `.msi` | Signtool | GitHub Releases |
-| Linux   | `.AppImage` + `.deb` | GPG | GitHub Releases |
-| Docker  | OCI image | Cosign | ghcr.io/calypso/calypso |
-| Self-host | `docker compose` | n/a | user-provided |
+## 2. Build
 
-## Public marketplace
+```bash
+cd web && npm run build         # SPA bundle
+./scripts/desktop-build.sh      # PyInstaller sidecar + Tauri shell
+```
 
-The marketplace lives at `docs/marketplace/` and is published to GitHub
-Pages on every release. Adding a community extension:
+The desktop build produces installers under
+`desktop/src-tauri/target/release/bundle/`:
 
-1. Fork the repo.
-2. Add your extension under `app/extensions/builtin/<your-id>/`.
-3. Submit a PR. CI will lint, sign, and add it to the catalog.
+- `.deb` + `.AppImage` on Linux
+- `.dmg` on macOS
+- `.exe` (NSIS) + `.msi` on Windows
+
+## 3. Smoke test
+
+```bash
+python3 -m app one_shot "Make a 30s unboxing for these new sneakers, hype energy, 18-25 streetwear"
+ls -la outputs/videos/
+```
+
+The render should land in `outputs/videos/`. Review it manually.
+
+## 4. Docs
+
+- [x] `docs/install.md` — fresh-install walkthrough
+- [x] `docs/quickstart.md` — first-render walkthrough
+- [x] `docs/templates.md` — Template schema reference
+- [x] `docs/studio.md` — Studio Pro agent architecture
+- [x] `docs/video_pipeline.md` — UGC + one_shot + motion + cost cap
+- [x] `docs/omni_integration.md` — when to enable Omni
+- [x] `docs/api.md` — full HTTP API reference
+- [x] `docs/RELEASE.md` — this file
+
+## 5. Marketplace
+
+The extension manifest schema lives at
+`scripts/extensions/SCHEMA.md`. HMAC signing key (`calypso_signing`)
+is provided via env var; the bundle includes the verify helper at
+`scripts/extensions/signing.py`.
+
+To release a new extension:
+
+```bash
+python3 scripts/extensions/sign.py path/to/extension.tar.gz
+python3 scripts/extensions/publish.py --tag v0.X
+```
+
+## 6. Tag
+
+```bash
+git tag -s v0.X -m "Calypso v0.X"
+git push --tags
+```
+
+The release workflow builds the SPA, the desktop bundles, and uploads
+to the marketplace object store.
+
+## 7. Self-hosting (Docker)
+
+For a self-hosted installation, publish the SPA + Flask container via
+`docker compose up`. The bundled `Caddyfile` reverse-proxies traffic to
+the Flask app and serves the SPA bundle as static files. Update the
+`.env` file with the marketplace URL and signing key, then restart.

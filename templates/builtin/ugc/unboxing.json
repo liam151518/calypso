@@ -1,0 +1,57 @@
+{
+  "id": null,
+  "name": "UGC Unboxing",
+  "category": "ugc",
+  "format": "video",
+  "duration_s": 24,
+  "fps": 30,
+  "aspect_ratio": "9:16",
+  "canvas": { "width": 1080, "height": 1920 },
+  "scenes": [
+    {
+      "id": "intro",
+      "kind": "text_bounce_in",
+      "duration_s": 3,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#0c0c12" },
+        { "type": "text", "id": "t1", "x": 0.5, "y": 0.45, "text": "Unboxing", "font_size": 96, "font_weight": "bold", "align": "center", "color": "#ffffff", "font_family": "Inter" }
+      ]
+    },
+    {
+      "id": "product",
+      "kind": "slide_up",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#f5f1ea" },
+        { "type": "product", "id": "p1", "x": 0.5, "y": 0.5, "scale": 0.7 },
+        { "type": "text", "id": "tagline", "x": 0.5, "y": 0.85, "text": "First look", "font_size": 48, "align": "center", "color": "#1a1a1a" }
+      ]
+    },
+    {
+      "id": "feature",
+      "kind": "sticker_pop",
+      "duration_s": 6,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#fff7e6" },
+        { "type": "text", "id": "h", "x": 0.5, "y": 0.3, "text": "What's inside", "font_size": 56, "font_weight": "bold", "align": "center", "color": "#222" },
+        { "type": "text", "id": "b", "x": 0.5, "y": 0.55, "text": "{brand.voice_punchy}", "font_size": 36, "align": "center", "color": "#444" }
+      ]
+    },
+    {
+      "id": "cta",
+      "kind": "countdown_pulse",
+      "duration_s": 9,
+      "layers": [
+        { "type": "background", "kind": "color", "color": "#1a1a1a" },
+        { "type": "text", "id": "cta1", "x": 0.5, "y": 0.4, "text": "Available now", "font_size": 64, "font_weight": "bold", "align": "center", "color": "#fff" },
+        { "type": "shape", "id": "cta-shape", "kind": "rect", "x": 0.3, "y": 0.6, "w": 0.4, "h": 0.12, "fill": "#ff5722", "radius": 0.04 },
+        { "type": "text", "id": "cta2", "x": 0.5, "y": 0.66, "text": "Tap to shop", "font_size": 36, "align": "center", "color": "#fff" }
+      ]
+    }
+  ],
+  "transitions": [
+    { "from": "intro", "to": "product", "kind": "fade", "duration_ms": 400 },
+    { "from": "product", "to": "feature", "kind": "slide", "duration_ms": 400 },
+    { "from": "feature", "to": "cta", "kind": "wipe", "duration_ms": 400 }
+  ]
+}

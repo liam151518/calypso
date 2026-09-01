@@ -3,6 +3,7 @@ import {
   Clapperboard,
   Cog,
   ImagePlus,
+  Layers,
   Library,
   Megaphone,
   Palette,
@@ -11,6 +12,7 @@ import {
   Sparkles,
   Wand2,
   Workflow,
+  Zap,
 } from "lucide-react";
 import { useEffect } from "react";
 
@@ -27,7 +29,10 @@ const NAV = [
   { to: "/references", label: "References", icon: Library, hint: "R" },
   { to: "/brand", label: "Brand", icon: Palette, hint: "B" },
   { to: "/studio", label: "Studio", icon: Wand2, hint: "S" },
-  { to: "/pipelines", label: "Pipelines", icon: Workflow, hint: "P" },
+  { to: "/studio-pro", label: "Studio Pro", icon: Wand2, hint: "P" },
+  { to: "/presets", label: "Presets", icon: Layers, hint: "X" },
+  { to: "/automation", label: "Automation", icon: Zap, hint: "A" },
+  { to: "/pipelines", label: "Pipelines", icon: Workflow, hint: "W" },
   { to: "/extensions", label: "Extensions", icon: Plug, hint: "E" },
   { to: "/marketing", label: "Marketing", icon: Megaphone, hint: "M" },
   { to: "/settings", label: "Settings", icon: Cog, hint: "t" },
