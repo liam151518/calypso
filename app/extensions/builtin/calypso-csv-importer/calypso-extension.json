@@ -1,0 +1,10 @@
+{
+  "id": "calypso-csv-importer",
+  "version": "0.1.0",
+  "type": "import_",
+  "name": "CSV Importer",
+  "author": "Calypso",
+  "description": "Bulk-imports CSV files (contacts, drafts, etc.) by streaming rows through to the relevant Phase F module. Ships as the reference importer for Phase D extensions.",
+  "license": "MIT",
+  "homepage": "https://calypso.dev/extensions/csv"
+}

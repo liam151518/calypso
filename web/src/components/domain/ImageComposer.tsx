@@ -134,7 +134,7 @@ export function ImageComposer({
       </div>
       <div className="flex items-center justify-between border-t border-border pt-4">
         <p className="text-xs text-muted-foreground">
-          {refId ? `1 reference: ${refId}` : "No reference — text-to-image."}
+          {refId ? `1 reference: ${refId}` : "No reference. Text-to-image."}
           {brandId ? " Brand will be prepended." : ""}
           {cost ? (
             <>

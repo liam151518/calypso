@@ -4,9 +4,13 @@ import {
   Cog,
   ImagePlus,
   Library,
+  Megaphone,
   Palette,
+  Plug,
   Search,
   Sparkles,
+  Wand2,
+  Workflow,
 } from "lucide-react";
 import { useEffect } from "react";
 
@@ -22,7 +26,11 @@ const NAV = [
   { to: "/outputs", label: "Outputs", icon: Clapperboard, hint: "O" },
   { to: "/references", label: "References", icon: Library, hint: "R" },
   { to: "/brand", label: "Brand", icon: Palette, hint: "B" },
-  { to: "/settings", label: "Settings", icon: Cog, hint: "S" },
+  { to: "/studio", label: "Studio", icon: Wand2, hint: "S" },
+  { to: "/pipelines", label: "Pipelines", icon: Workflow, hint: "P" },
+  { to: "/extensions", label: "Extensions", icon: Plug, hint: "E" },
+  { to: "/marketing", label: "Marketing", icon: Megaphone, hint: "M" },
+  { to: "/settings", label: "Settings", icon: Cog, hint: "t" },
 ];
 
 export function AppShell() {

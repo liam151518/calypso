@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Pipelines · Calypso{% endblock %}
+{% block content %}
+<section class="page-header">
+  <h1>Pipelines</h1>
+  <p class="muted">Visual generator funnels. Chain triggers, brands, prompts, models, and outputs.</p>
+</section>
+
+{% if active %}
+<section class="card">
+  <h2>{{ active.name }}</h2>
+  {% if active.description %}<p class="muted">{{ active.description }}</p>{% endif %}
+  <div class="kv">
+    <span class="kv-key">Nodes</span><span class="kv-val">{{ active.nodes | length }}</span>
+    <span class="kv-key">Edges</span><span class="kv-val">{{ active.edges | length }}</span>
+    <span class="kv-key">Workers</span><span class="kv-val">{{ active.max_workers }}</span>
+    <span class="kv-key">Enabled</span><span class="kv-val">{{ "yes" if active.enabled else "no" }}</span>
+  </div>
+  <h3>Recent runs</h3>
+  {% if runs %}
+  <table class="data-table">
+    <thead><tr><th>id</th><th>status</th><th>started</th><th>spent</th></tr></thead>
+    <tbody>
+      {% for r in runs %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.status }}</td>
+        <td>{{ "n/a" if not r.started_at else r.started_at }}</td>
+        <td>${{ "%.3f" | format(r.spent_usd) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No runs yet.</p>
+  {% endif %}
+  <p class="muted">Edit this pipeline in the SPA: <code>/pipelines/{{ active.id }}</code></p>
+</section>
+{% endif %}
+
+<section>
+  <h2>All pipelines</h2>
+  {% if pipelines %}
+  <table class="data-table">
+    <thead><tr><th>id</th><th>name</th><th>nodes</th><th>edges</th><th>updated</th></tr></thead>
+    <tbody>
+      {% for p in pipelines %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td><a href="{{ url_for('pipelines_detail', pid=p.id) }}">{{ p.name }}</a></td>
+        <td>{{ p.nodes | length }}</td>
+        <td>{{ p.edges | length }}</td>
+        <td>{{ "%.0f" | format(p.updated_at) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No pipelines yet. Open the SPA to build one.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Available node types</h2>
+  <ul class="node-list">
+    {% for k, v in schemas.items() %}
+    <li><b>{{ v.title }}</b> <span class="muted">({{ v.category }})</span>: {{ v.description }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

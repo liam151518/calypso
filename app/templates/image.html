@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Image — Calypso{% endblock %}
+{% block title %}Image · Calypso{% endblock %}
 {% block content %}
 <section class="card">
   <h1>Generate image</h1>
@@ -12,7 +12,7 @@
   >
     <label>Reference
       <select name="ref_id">
-        <option value="">— None —</option>
+        <option value="">None</option>
         {% for r in references %}
           <option value="{{ r.id }}">{{ r.name }}</option>
         {% endfor %}

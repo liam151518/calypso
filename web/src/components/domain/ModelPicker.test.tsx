@@ -69,6 +69,6 @@ describe("ModelPicker", () => {
       />,
     );
     expect(screen.getAllByText(/Pick a model/i).length).toBeGreaterThan(0);
-    expect(screen.getByTestId("model-cost-video").textContent).toMatch(/—/);
+    expect(screen.getByTestId("model-cost-video").textContent).toMatch(/n\/a/);
   });
 });

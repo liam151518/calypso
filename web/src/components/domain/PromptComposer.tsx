@@ -157,7 +157,7 @@ export function PromptComposer({
       <div className="flex items-center justify-between border-t border-border pt-4">
         <p className="text-xs text-muted-foreground">
           {refIds.length === 0
-            ? "No references — single shot."
+            ? "No references. Single shot."
             : refIds.length === 1
               ? "1 reference."
               : `Batch of ${refIds.length} references.`}

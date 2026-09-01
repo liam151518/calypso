@@ -14,7 +14,7 @@ export function formatBytes(bytes: number, decimals = 1) {
 }
 
 export function formatRelative(ts: number | null | undefined) {
-  if (!ts) return "—";
+  if (!ts) return "never";
   const ms = Date.now() - ts * 1000;
   const sec = Math.floor(ms / 1000);
   if (sec < 60) return `${sec}s ago`;

@@ -1,0 +1,10 @@
+{
+  "id": "calypso-logger-channel",
+  "version": "0.1.0",
+  "type": "channel",
+  "name": "Logger Channel",
+  "author": "Calypso",
+  "description": "Built-in channel that prints every send to stdout. Useful for debugging and as a reference implementation for community channels.",
+  "license": "MIT",
+  "homepage": "https://calypso.dev/extensions/logger"
+}

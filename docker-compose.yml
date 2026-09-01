@@ -1,0 +1,66 @@
+# docker-compose.yml. Calypso self-hosted stack (single domain, HTTPS via Caddy).
+#
+# Bring up:   docker compose up -d
+# Tail logs:  docker compose logs -f calypso
+# Stop:       docker compose down
+#
+# Volumes: `./data/` holds the SQLite DB, outputs/, references/ and any
+# uploaded media. Back this up with `scripts/backup.sh`.
+#
+# Environment: copy .env.example to .env and fill in your keys, then
+# `docker compose --env-file .env up -d`. NEVER commit your real `.env`.
+
+services:
+  calypso:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: calypso:latest
+    container_name: calypso_app
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      # Wired by .env (or set directly here for local dev)
+      FAL_API_KEY: ${FAL_API_KEY:-}
+      MINIMAX_API_TOKEN: ${MINIMAX_API_TOKEN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
+      META_ACCESS_TOKEN: ${META_ACCESS_TOKEN:-}
+      TIKTOK_ACCESS_TOKEN: ${TIKTOK_ACCESS_TOKEN:-}
+      CALYPSO_HOST: 0.0.0.0
+      CALYPSO_PORT: "8080"
+      CALYPSO_DB_PATH: /data/calypso.db
+    volumes:
+      - calypso_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on: {}
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: calypso_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      EMAIL: ${EMAIL:-admin@example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      calypso:
+        condition: service_healthy
+
+volumes:
+  calypso_data:
+  caddy_data:
+  caddy_config:

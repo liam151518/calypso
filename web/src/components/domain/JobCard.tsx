@@ -99,7 +99,7 @@ export function JobCard({ job, initialOpen }: JobCardProps) {
 }
 
 function previewPrompt(s: string) {
-  if (!s) return "—";
+  if (!s) return "(empty prompt)";
   // Strip the [BRAND]…[/BRAND] prefix from the preview so the user sees the actual ask.
   const stripped = s.replace(/\[BRAND\][\s\S]*?\[\/BRAND\]\s*/g, "");
   const trimmed = stripped.replace(/\[PROMPT\][\s\S]*?\[\/PROMPT\]/g, (m) =>

@@ -26,7 +26,7 @@ export function SettingsPage() {
             ))}
             <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground">
               <Cog className="h-3 w-3" />
-              Changes take effect on the next request — no restart required.
+              Changes take effect on the next request. No restart required.
             </div>
           </CardContent>
         </Card>

@@ -1,0 +1,23 @@
+# Caddyfile. Reverse-proxy Calypso with automatic HTTPS.
+#
+# In docker-compose, {$DOMAIN} is supplied via environment. Replace with your
+# actual domain (e.g. `calypso.example.com`) when deploying. Caddy obtains
+# and renews Let's Encrypt certs automatically. No manual certbot dance.
+
+{$DOMAIN:localhost} {
+    encode zstd gzip
+    reverse_proxy calypso:8080 {
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Real-IP {remote_host}
+    }
+
+    # Allow generous uploads (100MB max). Matches Flask MAX_CONTENT_LENGTH.
+    request_body {
+        max_size 100MB
+    }
+
+    # Health endpoint shortcut for uptime monitors.
+    handle /api/health {
+        reverse_proxy calypso:8080
+    }
+}

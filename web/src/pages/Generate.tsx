@@ -129,7 +129,7 @@ export function GeneratePage() {
                 <EmptyState
                   icon={Library}
                   title="No jobs yet"
-                  description="Generate something — recent runs will appear here with live status."
+                  description="Generate something. Recent runs will appear here with live status."
                 />
               ) : (
                 jobs.data.slice(0, 6).map((j) => (

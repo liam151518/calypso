@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Calypso Marketplace</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --card: #15171c;
+      --text: #e8eaf0;
+      --muted: #8a8d97;
+      --accent: #6dd1ff;
+      --border: #2a2d35;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+      line-height: 1.5;
+    }
+    header {
+      padding: 48px 32px 24px;
+      max-width: 980px; margin: 0 auto;
+    }
+    h1 { margin: 0 0 8px; font-size: 32px; }
+    .tagline { color: var(--muted); margin: 0; }
+    main { padding: 24px 32px 64px; max-width: 980px; margin: 0 auto; }
+    .grid {
+      display: grid; gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card h3 { margin: 0 0 4px; font-size: 16px; }
+    .meta { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+    .desc { font-size: 14px; color: var(--text); }
+    .pill {
+      display: inline-block; padding: 2px 8px;
+      background: #1d2028; border-radius: 6px;
+      font-size: 11px; margin-right: 6px;
+    }
+    footer {
+      padding: 24px 32px 48px;
+      max-width: 980px; margin: 0 auto;
+      color: var(--muted); font-size: 13px;
+      border-top: 1px solid var(--border);
+    }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Calypso Marketplace</h1>
+    <p class="tagline">Extensions for the open-source Calypso marketing platform. Add models, agents, channels, forms, and importers.</p>
+  </header>
+  <main>
+    <div class="grid" id="grid">Loading…</div>
+  </main>
+  <footer>
+    MIT licensed. <a href="../RELEASE.md">Release process</a>.
+  </footer>
+  <script>
+    fetch("./index.json")
+      .then(r => r.json())
+      .then(data => {
+        const grid = document.getElementById("grid");
+        grid.innerHTML = "";
+        for (const ext of data.extensions) {
+          const el = document.createElement("div");
+          el.className = "card";
+          el.innerHTML = `
+            <h3>${ext.name}</h3>
+            <div class="meta">
+              <span class="pill">${ext.type}</span>
+              <span class="pill">v${ext.version}</span>
+              <span class="pill">${ext.license}</span>
+            </div>
+            <p class="desc">${ext.description}</p>
+            <p class="meta">by ${ext.author}${ext.homepage ? " · <a href='" + ext.homepage + "'>homepage</a>" : ""}</p>
+          `;
+          grid.appendChild(el);
+        }
+      });
+  </script>
+</body>
+</html>

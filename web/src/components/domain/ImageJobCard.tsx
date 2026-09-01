@@ -18,7 +18,7 @@ interface ImageJobCardProps {
 }
 
 function formatUSD(n: number | null | undefined): string {
-  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  if (n === null || n === undefined || Number.isNaN(n)) return "n/a";
   return `$${n.toFixed(n < 0.1 ? 3 : 2)}`;
 }
 

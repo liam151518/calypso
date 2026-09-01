@@ -133,3 +133,71 @@ export type CostEstimate = {
   num_images?: number;
   note?: string;
 };
+
+// ----- Phase A: Pipeline / Funnel builder -----
+
+export type PipelineNode = {
+  id: string;
+  type: string; // e.g. "trigger", "model", "generate"
+  params: Record<string, unknown>;
+  position?: { x: number; y: number };
+};
+
+export type PipelineEdge = {
+  source: string;
+  target: string;
+  source_port?: string;
+  target_port?: string;
+};
+
+export type Pipeline = {
+  id: number;
+  name: string;
+  description: string;
+  nodes: PipelineNode[];
+  edges: PipelineEdge[];
+  max_workers: number;
+  enabled: boolean;
+  created_at: number;
+  updated_at: number;
+};
+
+export type PipelineRun = {
+  id: number;
+  pipeline_id: number;
+  status: "queued" | "running" | "succeeded" | "failed";
+  log: Array<{ t: number; node: string; msg: string }>;
+  started_at: number | null;
+  finished_at: number | null;
+  spent_usd: number;
+  error: string | null;
+  triggered_by: string | null;
+};
+
+export type NodeSchema = {
+  title: string;
+  category: string;
+  description: string;
+  inputs?: string[];
+  outputs?: string[];
+  params: Record<string, unknown>;
+};
+
+export type NodeSchemaResponse = {
+  schemas: Record<string, NodeSchema>;
+  categories: Record<string, string[]>;
+};
+
+export type Extension = {
+  id: string;
+  version: string;
+  type: string;
+  name: string;
+  author: string;
+  description: string;
+  homepage: string;
+  license: string;
+  checksum: string;
+  signed: boolean;
+  enabled: boolean;
+};

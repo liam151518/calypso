@@ -30,7 +30,7 @@ export function OutputsPage() {
         <EmptyState
           icon={Clapperboard}
           title="No outputs yet"
-          description="Generate on the Generate or Image page — outputs will appear here once they finish."
+          description="Generate on the Generate or Image page. Outputs will appear here once they finish."
         />
       ) : (
         <div className="flex flex-col gap-8">

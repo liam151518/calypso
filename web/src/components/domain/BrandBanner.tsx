@@ -90,7 +90,7 @@ function BrandBannerEmpty() {
         <div className="flex h-9 w-9 items-center justify-center rounded-md bg-secondary">
           <Palette className="h-4 w-4" />
         </div>
-        No active brand. Add one on the Brand page — it will be auto-prepended
+        No active brand. Add one on the Brand page. It will be auto-prepended
         to every prompt.
       </CardContent>
     </Card>

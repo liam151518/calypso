@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "generated_at": "2026-01-01T00:00:00Z",
+  "extensions": [
+    {
+      "id": "calypso-logger-channel",
+      "version": "0.1.0",
+      "type": "channel",
+      "name": "Logger Channel",
+      "description": "Built-in channel that prints every send to stdout. Useful for debugging and as a reference for community channels.",
+      "author": "Calypso",
+      "license": "MIT",
+      "homepage": "https://calypso.dev/extensions/logger",
+      "checksum": "auto",
+      "signed": false
+    },
+    {
+      "id": "calypso-csv-importer",
+      "version": "0.1.0",
+      "type": "import_",
+      "name": "CSV Importer",
+      "description": "Bulk-imports CSV files (contacts, drafts, and more). Reference importer for Phase D.",
+      "author": "Calypso",
+      "license": "MIT",
+      "homepage": "https://calypso.dev/extensions/csv",
+      "checksum": "auto",
+      "signed": false
+    }
+  ]
+}

@@ -7,7 +7,10 @@ import type {
   ImageJob,
   Job,
   ModelSpec,
+  NodeSchemaResponse,
   OutputItem,
+  Pipeline,
+  PipelineRun,
   RefItem,
   RefTag,
 } from "./types";
@@ -280,5 +283,126 @@ export function useImageOutputs() {
   return useQuery<ImageOutputItem[]>({
     queryKey: ["image-outputs"],
     queryFn: () => api.listImageOutputs().then((r) => r.outputs),
+  });
+}
+
+// ----- Phase A: pipelines -----
+
+export function useNodeSchemas() {
+  return useQuery<NodeSchemaResponse>({
+    queryKey: ["pipeline-node-schemas"],
+    queryFn: () => api.listNodeSchemas().then((r) => {
+      const { ok, ...rest } = r as { ok: boolean } & NodeSchemaResponse;
+      void ok;
+      return rest;
+    }),
+    staleTime: Infinity,
+  });
+}
+
+export function usePipelines() {
+  return useQuery<Pipeline[]>({
+    queryKey: ["pipelines"],
+    queryFn: () => api.listPipelines().then((r) => r.pipelines),
+  });
+}
+
+export function usePipeline(id: number | null) {
+  return useQuery<Pipeline | null>({
+    queryKey: ["pipeline", id],
+    enabled: id != null,
+    queryFn: () =>
+      id == null
+        ? Promise.resolve(null)
+        : api.getPipeline(id).then((r) => r.pipeline),
+  });
+}
+
+export function useCreatePipeline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof api.createPipeline>[0]) =>
+      api.createPipeline(data).then((r) => r.pipeline),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pipelines"] });
+    },
+  });
+}
+
+export function useUpdatePipeline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Parameters<typeof api.updatePipeline>[1];
+    }) => api.updatePipeline(id, data).then((r) => r.pipeline),
+    onSuccess: (p) => {
+      qc.invalidateQueries({ queryKey: ["pipelines"] });
+      qc.invalidateQueries({ queryKey: ["pipeline", p.id] });
+    },
+  });
+}
+
+export function useDeletePipeline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.deletePipeline(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pipelines"] });
+    },
+  });
+}
+
+export function useRunPipeline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, triggered_by }: { id: number; triggered_by?: string }) =>
+      api.runPipeline(id, triggered_by).then((r) => r.run),
+    onSuccess: (run) => {
+      qc.invalidateQueries({ queryKey: ["pipeline-runs", run.pipeline_id] });
+    },
+  });
+}
+
+export function usePipelineRuns(pipelineId: number | null) {
+  return useQuery<PipelineRun[]>({
+    queryKey: ["pipeline-runs", pipelineId],
+    enabled: pipelineId != null,
+    refetchInterval: 2000,
+    queryFn: () =>
+      pipelineId == null
+        ? Promise.resolve([])
+        : api.listPipelineRuns(pipelineId).then((r) => r.runs),
+  });
+}
+
+export function usePipelineRun(runId: number | null) {
+  return useQuery<PipelineRun | null>({
+    queryKey: ["pipeline-run", runId],
+    enabled: runId != null,
+    refetchInterval: 1500,
+    queryFn: () =>
+      runId == null
+        ? Promise.resolve(null)
+        : api.getPipelineRun(runId).then((r) => r.run),
+  });
+}
+
+export function useExtensions() {
+  return useQuery<import("./types").Extension[]>({
+    queryKey: ["extensions"],
+    queryFn: () => api.listExtensions().then((r) => r.extensions),
+  });
+}
+
+export function useToggleExtension() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, enable }: { id: string; enable: boolean }) =>
+      enable ? api.enableExtension(id) : api.disableExtension(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["extensions"] }),
   });
 }

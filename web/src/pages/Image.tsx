@@ -87,7 +87,7 @@ export function ImagePage() {
                 <EmptyState
                   icon={Library}
                   title="No image jobs yet"
-                  description="Generate an image — recent runs will appear here with live status."
+                  description="Generate an image. Recent runs will appear here with live status."
                 />
               ) : (
                 jobs.data.slice(0, 6).map((j) => (

@@ -27,7 +27,7 @@ async function call<T>(
       const j = await res.json();
       if (j?.error) msg = j.error;
     } catch {
-      // ignore — keep status text
+      // ignore, keep status text
     }
     throw new Error(msg);
   }
@@ -206,6 +206,83 @@ export const api = {
 
   listImageOutputs: () =>
     call<Ok<{ outputs: ImageOutputItem[] }>>("/api/image-outputs"),
+
+  // ----- Phase A: pipelines -----
+  listNodeSchemas: () =>
+    call<Ok<import("./types").NodeSchemaResponse>>("/api/pipelines/node-schemas"),
+
+  listPipelines: () =>
+    call<Ok<{ pipelines: import("./types").Pipeline[] }>>("/api/pipelines"),
+
+  createPipeline: (data: {
+    name: string;
+    description?: string;
+    nodes: import("./types").PipelineNode[];
+    edges: import("./types").PipelineEdge[];
+    max_workers?: number;
+    enabled?: boolean;
+  }) =>
+    call<Ok<{ pipeline: import("./types").Pipeline }>>("/api/pipelines", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getPipeline: (id: number) =>
+    call<Ok<{ pipeline: import("./types").Pipeline }>>(`/api/pipelines/${id}`),
+
+  updatePipeline: (
+    id: number,
+    data: Partial<{
+      name: string;
+      description: string;
+      nodes: import("./types").PipelineNode[];
+      edges: import("./types").PipelineEdge[];
+      max_workers: number;
+      enabled: boolean;
+    }>,
+  ) =>
+    call<Ok<{ pipeline: import("./types").Pipeline }>>(`/api/pipelines/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deletePipeline: (id: number) =>
+    call<Ok<{ deleted: true }>>(`/api/pipelines/${id}`, { method: "DELETE" }),
+
+  runPipeline: (id: number, triggered_by?: string) =>
+    call<Ok<{ run: import("./types").PipelineRun }>>(
+      `/api/pipelines/${id}/run`,
+      {
+        method: "POST",
+        body: JSON.stringify({ triggered_by: triggered_by ?? "ui" }),
+      },
+    ),
+
+  listPipelineRuns: (id: number) =>
+    call<Ok<{ runs: import("./types").PipelineRun[] }>>(
+      `/api/pipelines/${id}/runs`,
+    ),
+
+  getPipelineRun: (runId: number) =>
+    call<Ok<{ run: import("./types").PipelineRun }>>(
+      `/api/pipelines/runs/${runId}`,
+    ),
+
+  // ---- Phase D: extensions ----
+  listExtensions: () =>
+    call<Ok<{ extensions: import("./types").Extension[] }>>("/api/extensions"),
+
+  enableExtension: (id: string, secret?: string) =>
+    call<Ok<{ id: string; enabled: boolean }>>(
+      `/api/extensions/${encodeURIComponent(id)}/enable`,
+      { method: "POST", body: JSON.stringify({ secret: secret ?? "" }) },
+    ),
+
+  disableExtension: (id: string) =>
+    call<Ok<{ id: string; enabled: boolean }>>(
+      `/api/extensions/${encodeURIComponent(id)}/disable`,
+      { method: "POST" },
+    ),
 };
 
 export type ImageOutputItem = {
