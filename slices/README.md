@@ -1,4 +1,4 @@
-# slices/ — Vertical-slice task breakdowns
+# slices/. Vertical-slice task breakdowns
 
 Adam breaks each phase into **vertical slices** during `slice-to-tasks`. Each slice is a user-visible behavior change, not a layer (per the Adam rules: "Build in vertical slices, not layers").
 

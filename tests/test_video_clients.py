@@ -2,7 +2,7 @@
 
 Run: `python -m pytest tests/test_video_clients.py -v`
 
-These tests don't require real API access — they spin up a fake HTTP server
+These tests don't require real API access. They spin up a fake HTTP server
 that mimics MiniMax H3 and fal.ai responses.
 """
 

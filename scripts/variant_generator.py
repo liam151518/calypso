@@ -1,4 +1,4 @@
-"""Variant generator — one reference → multiple generation variants.
+"""Variant generator. One reference to multiple generation variants.
 
 Per the Phase 4 optimization: for each pick, generate N variants with different
 prompts/captions/aspect ratios. The Telegram approval message shows N

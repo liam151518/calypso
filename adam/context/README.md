@@ -1,4 +1,4 @@
-# adam/context/ — Calibration
+# adam/context/. Calibration
 
 These files are written by the **`calibrate`** skill the first time you install Adam (Phase 0). They store stable info about you and the project so every future session in this repo has the same baseline.
 
@@ -14,7 +14,7 @@ adam/context/project.md               # What this repo is
 
 The files are intentionally short and human-written (with Adam's help). They are the **only** files Adam always re-reads when starting a new session. Everything else (memory, handoffs, plans) lives in `adam/memory/`.
 
-If you ever want to reset Adam's understanding of you, edit these files directly. Don't ask Adam — it will just defer to whatever's here.
+If you ever want to reset Adam's understanding of you, edit these files directly. Don't ask Adam. It will just defer to whatever's here.
 
 ## Status
 

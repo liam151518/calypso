@@ -1,4 +1,4 @@
-"""Visual QA — boot the app, screenshot every page, dump to /tmp/calypso_qa/.
+"""Visual QA. Boot the app, screenshot every page, dump to /tmp/calypso_qa/.
 
 Run: python3 scripts/visual_qa.py
 """
@@ -46,7 +46,7 @@ async def main() -> None:
             await page.screenshot(path=str(OUT / f"{name}_empty.png"), full_page=True)
             print(f"  saved {name}_empty.png")
 
-        # 2. With data — set a key, upload a ref, generate (fake-succeed a job)
+        # 2. With data. Set a key, upload a ref, generate (fake-succeed a job).
         # First save a key via the API
         await page.goto("http://127.0.0.1:8765/settings", wait_until="networkidle")
         await page.fill('input[name="value"]', "fake-fal-key-1234567890abcdef")

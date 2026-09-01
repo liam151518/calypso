@@ -2,7 +2,7 @@
 
 Run: `python -m pytest tests/test_post_process.py -v`
 
-These tests don't require network or ComfyUI — they generate small synthetic
+These tests don't require network or ComfyUI. They generate small synthetic
 images with PIL, process them, and assert on the outputs.
 """
 
@@ -76,7 +76,7 @@ class TestApplyWatermark:
         image = Image.open(sample_image).convert("RGB")
         config = WatermarkConfig(logo_path=sample_logo, opacity=0.5)
         result = apply_watermark(image, config)
-        # The result should have a mark somewhere — easiest check is just that
+        # The result should have a mark somewhere. Easiest check is just that.
         # the dimensions match and it's still RGB
         assert result.size == image.size
         assert result.mode == "RGB"

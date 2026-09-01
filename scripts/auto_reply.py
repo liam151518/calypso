@@ -1,4 +1,4 @@
-"""Auto-reply classifier — routes incoming DMs/comments to the right handler.
+"""Auto-reply classifier. Routes incoming DMs/comments to the right handler.
 
 Per Phase 5.2: the Social Stats unified inbox collects DMs and comments.
 This classifier decides what to do with each one:
@@ -121,7 +121,7 @@ def classify(message: str) -> Classification:
 def generate_reply(message: str, brand_voice_terms: list[str] | None = None) -> str:
     """Generate a brand-voice-conditioned reply to a gacha-pull question.
 
-    Uses simple templating — in production this would call the LLM with the
+    Uses simple templating. In production this would call the LLM with the
     brand voice from brand/voice.md as system prompt.
     """
     cls = classify(message)
@@ -132,7 +132,7 @@ def generate_reply(message: str, brand_voice_terms: list[str] | None = None) -> 
     reply_templates = []
 
     if "tier list" in text or "best figure" in text:
-        reply_templates.append("full tier list is up at gachakingdoms.com — S-tier is fewer figures than you'd expect")
+        reply_templates.append("full tier list is up at gachakingdoms.com. S-tier is fewer figures than you'd expect")
 
     if "damascus" in text:
         reply_templates.append("the Damascus set is honestly the move right now. Damascus pink cabinet at Rosebank tends to have the best pulls.")
@@ -147,7 +147,7 @@ def generate_reply(message: str, brand_voice_terms: list[str] | None = None) -> 
     reply = " ".join(reply_templates)
     if brand_voice_terms:
         # Insert one brand-voice term somewhere natural
-        reply += " — " + brand_voice_terms[0]
+        reply += ". " + brand_voice_terms[0]
 
     return reply
 

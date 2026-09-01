@@ -1,6 +1,6 @@
 ---
 name: setup-adam
-description: One-shot project bootstrap — creates packet/, plan/, slices/, agent-control/, .cursor/skills/.
+description: One-shot project bootstrap. Creates packet/, plan/, slices/, agent-control/, .cursor/skills/.
 ---
 
 # Setup-adam

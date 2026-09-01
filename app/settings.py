@@ -1,4 +1,4 @@
-"""app/settings.py — read/write the local .env file.
+"""app/settings.py. Read/write the local .env file.
 
 We treat .env as the single source of truth for API keys. The UI lists known
 services, masks current values, and writes back on save. We never log a key
@@ -35,7 +35,7 @@ class KeyStatus:
     env_var: str
     placeholder: str
     is_set: bool
-    masked: str | None  # e.g. "••••abcd" — last 4 chars only
+    masked: str | None  # e.g. "••••abcd" (last 4 chars only)
 
 
 def _read_env_file(path: Path) -> dict[str, str]:

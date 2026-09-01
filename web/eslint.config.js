@@ -24,7 +24,7 @@ export default [
       ...tsPlugin.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": "off",
-      // TypeScript already checks for undefined identifiers — disable ESLint's
+      // TypeScript already checks for undefined identifiers. Disable ESLint's
       // duplicate no-undef check so DOM types like `RequestInit`/`React` work
       // without an `import React` dance.
       "no-undef": "off",

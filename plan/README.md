@@ -1,4 +1,4 @@
-# plan/ — Adam's plans + ADRs
+# plan/. Adam's plans + ADRs
 
 Adam writes phase-level plans and Architecture Decision Records (ADRs) here during `research-and-plan` and `council` skills.
 

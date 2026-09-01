@@ -1,4 +1,4 @@
-# agent-control/ — Durable orchestrator state
+# agent-control/. Durable orchestrator state
 
 Adam uses this folder for **current-state** info that needs to survive between Cursor sessions. It's the analog of a run ledger.
 
@@ -38,4 +38,4 @@ Empty. Adam populates this as the pipeline runs.
 
 ## When `verify.sh` checks here
 
-`verify.sh` doesn't currently validate agent-control contents — they're Adam's freeform notes. Adam uses them at session start to resume work.
+`verify.sh` doesn't currently validate agent-control contents. They're Adam's freeform notes. Adam uses them at session start to resume work.

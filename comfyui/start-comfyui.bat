@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM start-comfyui.bat — Launch ComfyUI on the Windows PC
+REM start-comfyui.bat. Launch ComfyUI on the Windows PC
 REM ============================================================
 REM
 REM What this does:

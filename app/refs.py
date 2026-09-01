@@ -1,4 +1,4 @@
-"""app/refs.py — reference library backed by SQLite.
+"""app/refs.py. Reference library backed by SQLite.
 
 A "reference" is a file in `references/uploads/`. The DB only stores
 metadata that the filesystem can't: tag associations, plus auto-registration
@@ -8,7 +8,7 @@ Vocabulary:
     reference_id  -> str (the filename, used as a stable id)
     tag           -> str, normalised (lowercased, dashed), max 32 chars
 
-Tags are a flat vocabulary — no hierarchy, no color codes in v1. A tag
+Tags are a flat vocabulary. No hierarchy, no color codes in v1. A tag
 becomes available the first time it's used.
 """
 
@@ -58,9 +58,9 @@ def _conn() -> sqlite3.Connection:
 def _ensure_file_registered(filename: str) -> None:
     """Insert a row into reference_tags for a file that has no entries yet.
 
-    We don't store a `references` table — the file IS the record. A file
+    We don't store a `references` table. The file IS the record. A file
     with no tags just has zero rows in `reference_tags`. This helper inserts
-    a sentinel by writing nothing (no-op) — but it's the hook where future
+    a sentinel by writing nothing (no-op), but it's the hook where future
     metadata (notes, dimensions) would land. Kept for symmetry.
     """
     return None

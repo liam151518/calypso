@@ -1,4 +1,4 @@
-"""Tests for app/image_jobs.py — image generation registry and helpers."""
+"""Tests for app/image_jobs.py. Image generation registry and helpers."""
 
 from __future__ import annotations
 

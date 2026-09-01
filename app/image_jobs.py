@@ -1,4 +1,4 @@
-"""app/image_jobs.py — image generation jobs (fal.ai image models).
+"""app/image_jobs.py. Image generation jobs (fal.ai image models).
 
 A small parallel to app/jobs.py: each request becomes a Job with the same
 fields but no duration/resolution. We submit synchronously to fal.ai's

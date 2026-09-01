@@ -1,4 +1,4 @@
-# Gatcha Kingdom — Voice & Tone
+# Gatcha Kingdom. Voice & Tone
 
 > Adam will fill this in during the `grill-me` skill. The skeleton below pre-populates 5 tone examples and the banned-word list from the live site + legal brief.
 
@@ -10,7 +10,7 @@
 
 Three rules:
 
-1. **Use "you" and "I" — never "we" and "our users".**
+1. **Use "you" and "I". Never "we" and "our users".**
 2. **Show, don't sell.** Describe the toy, the reveal, the cabinet. Don't pitch.
 3. **Treat the reader as someone who's already hooked.** They know what a capsule is. They know what a tier list is. Don't explain gacha to a gacha player.
 
@@ -32,7 +32,7 @@ Three rules:
 
 ### 3. "Tier list" — sharing strategy
 
-> New tier list up on the site. S-tier is honestly fewer figures than I expected — the Damascus set carries harder than people think.
+> New tier list up on the site. S-tier is honestly fewer figures than I expected. The Damascus set carries harder than people think.
 
 **Pattern:** opinionated, casual, links to site subtly ("on the site"), uses domain vocabulary.
 
@@ -74,7 +74,7 @@ From `../Gacha Luka/docs/GATCHA_KINGDOM_PRODUCT_BRIEF.md` section 3 (Legal posit
 - **1-3 emojis max per caption**
 - Preferred: ✨ 🎴 🐱 🎉 (matches the kawaii/arcade vibe)
 - Banned: 💰 💸 🎰 🎲 (gambling energy)
-- Use sparingly — emoji spam is the #1 sign of low-quality ad copy
+- Use sparingly. Emoji spam is the #1 sign of low-quality ad copy.
 
 ---
 
@@ -108,4 +108,4 @@ References that land: Rosebank, Johannesburg, online vs IRL, queue at the cabine
 
 ---
 
-*Last updated: 2026-08-31 (scaffolded — Adam will extend during `grill-me`)*
+*Last updated: 2026-08-31 (scaffolded. Adam will extend during `grill-me`.)*

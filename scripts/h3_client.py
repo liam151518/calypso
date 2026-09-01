@@ -2,9 +2,9 @@
 
 Talks to the MiniMax platform's H3 video generation API at api.minimax.io.
 The 3-stage pipeline:
-  1. H3-Context-IR    — establishes the visual context from references
-  2. H3-Base          — generates the base 768p video with native audio
-  3. H3-Regenerate-2K — upscales to 2K with detail preservation
+  1. H3-Context-IR. Establishes the visual context from references.
+  2. H3-Base. Generates the base 768p video with native audio.
+  3. H3-Regenerate-2K. Upscales to 2K with detail preservation.
 
 Mode: Ref2VA (reference-to-video-and-audio). Feed it Folder A references
 + Folder B brand assets, get a coherent gacha-style clip with native

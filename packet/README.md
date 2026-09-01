@@ -1,4 +1,4 @@
-# packet/ — The product brief
+# packet/. The product brief
 
 This folder holds the **stable product brief** that defines what we're building. Adam reads it at the start of every meaningful planning conversation.
 
@@ -21,7 +21,7 @@ packet/
 └── stakeholders.md              # who cares about what (you, future hires, legal)
 ```
 
-These documents are intentionally **durable** — they change slowly. Day-to-day changes go in `agent-control/` (current state) or `adam/memory/decisions/` (ADRs).
+These documents are intentionally **durable**. They change slowly. Day-to-day changes go in `agent-control/` (current state) or `adam/memory/decisions/` (ADRs).
 
 ## Status
 

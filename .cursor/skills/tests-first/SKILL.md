@@ -12,6 +12,6 @@ description: Write the test suite FIRST, then hand off to dispatch-builder to ma
 
 **Behaviour:**
 1. Write tests for: happy path, each error path, each edge case named in the plan.
-2. Use fakes/monkeypatch where appropriate — no live network calls in tests.
+2. Use fakes/monkeypatch where appropriate. No live network calls in tests.
 3. Run pytest once to confirm tests fail in the expected way.
 4. Hand off to `dispatch-builder` with the failure log.

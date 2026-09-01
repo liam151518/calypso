@@ -1,7 +1,7 @@
-"""Social Stats publisher — push approved posts to X, Instagram, TikTok.
+"""Social Stats publisher. Push approved posts to X, Instagram, TikTok.
 
 This is a thin wrapper around the Social Stats self-hosted API (Phase 5
-deliverable — see https://github.com/cbsshekhawat18-lab/social-stats-social-media-manager).
+deliverable. See https://github.com/cbsshekhawat18-lab/social-stats-social-media-manager).
 
 Per the plan: n8n calls this after the operator approves a Telegram message.
 The publisher authenticates to Social Stats with the operator's stored tokens,

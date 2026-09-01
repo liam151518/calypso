@@ -1,4 +1,4 @@
-"""Tests for app/refs.py — SQLite-backed reference library."""
+"""Tests for app/refs.py. SQLite-backed reference library."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """Tests for the Flask web UI (app/server.py).
 
-These tests use Flask's built-in test client — no real network, no real fal.ai.
+These tests use Flask's built-in test client. No real network, no real fal.ai.
 The fake fal.ai HTTP server is reused from tests/test_generate.py patterns.
 
 Run: `python -m pytest tests/test_app.py -v`
@@ -554,7 +554,7 @@ class TestMultiRefSubmit:
         captured = {}
         self._stub_generate(monkeypatch, captured)
 
-        # One good id, one traversal attempt — the bad id is kept in the batch
+        # One good id, one traversal attempt. The bad id is kept in the batch.
         # as a (filename, None) tuple, creating a no-ref job alongside the good one.
         resp = client.post(
             "/generate",

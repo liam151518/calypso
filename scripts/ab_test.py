@@ -6,7 +6,7 @@ Three A/B tests from the Phase 4 plan:
 - A/B 3: 5s vs 8s vs 10s clips
 
 Each post gets assigned to one variant per active test (deterministically by
-post_id hash, so the same post always gets the same variant — prevents
+post_id hash, so the same post always gets the same variant. Prevents
 mid-experiment confusion).
 
 State lives in agent-control/ab-tests.json.
@@ -119,7 +119,7 @@ def _cli() -> int:
         return 0
 
     if not is_test_active(args.test, state_path=STATE_FILE):
-        print(f"test '{args.test}' is not active — variants will not be applied")
+        print(f"test '{args.test}' is not active. Variants will not be applied.")
         return 0
 
     assignment = assign(args.test, args.post_id)

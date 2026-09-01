@@ -1,6 +1,6 @@
 ---
 name: intake
-description: Adam intake — turn a fuzzy brief into a structured product-brief.md.
+description: Adam intake. Turn a fuzzy brief into a structured product-brief.md.
 ---
 
 # Intake

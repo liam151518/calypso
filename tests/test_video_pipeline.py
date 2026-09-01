@@ -72,7 +72,7 @@ class TestComfyUIH3Template:
 
     def test_marks_phase_4_local_benchmark(self):
         data = json.loads(COMFYUI_H3.read_text())
-        # The template is for Phase 4 — not used in production video generation
+        # The template is for Phase 4. Not used in production video generation.
         assert data["metadata"]["phase"] == "4 — local H3 benchmark only"
 
     def test_documents_vram_requirements(self):

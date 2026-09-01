@@ -11,7 +11,7 @@
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true">
-        {# Geometric mark: a square frame with a signal-orange diagonal slot — control surface, not a logo. #}
+        {# Geometric mark: a square frame with a signal-orange diagonal slot (control surface, not a logo). #}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
           <rect x="3" y="3" width="18" height="18" rx="1"/>
           <line x1="3" y1="21" x2="21" y2="3" stroke="var(--signal)" stroke-width="2"/>
@@ -45,6 +45,10 @@
       <a href="{{ url_for('settings_page') }}" class="{% if request.endpoint == 'settings_page' %}active{% endif %}">
         <span class="nav-icon">{{ icons.icon('key') }}</span>
         Settings
+      </a>
+      <a href="{{ url_for('pipelines_index') }}" class="{% if request.endpoint in ('pipelines_index', 'pipelines_detail') %}active{% endif %}">
+        <span class="nav-icon">{{ icons.icon('flow') }}</span>
+        Pipelines
       </a>
     </nav>
 

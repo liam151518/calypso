@@ -1,4 +1,4 @@
-"""app/db.py — SQLite layer for structured app data.
+"""app/db.py. SQLite layer for structured app data.
 
 Calypso's structured data (reference tags, prompt drafts, brand profiles,
 job-prompt linkage, the "active brand" pointer) lives in a single SQLite
@@ -97,6 +97,135 @@ SCHEMA: list[str] = [
         FOREIGN KEY (brand_id) REFERENCES brand_profiles(id) ON DELETE SET NULL
     )
     """,
+
+    # ---- Phase A: Pipeline / Funnel builder ----
+    """
+    CREATE TABLE IF NOT EXISTS pipelines (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT NOT NULL,
+        description TEXT,
+        nodes_json  TEXT NOT NULL DEFAULT '[]',
+        edges_json  TEXT NOT NULL DEFAULT '[]',
+        max_workers INTEGER NOT NULL DEFAULT 2,
+        enabled     INTEGER NOT NULL DEFAULT 1,
+        created_at  REAL NOT NULL,
+        updated_at  REAL NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS pipeline_runs (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        pipeline_id  INTEGER NOT NULL,
+        status       TEXT NOT NULL DEFAULT 'queued',
+        log_json     TEXT NOT NULL DEFAULT '[]',
+        started_at   REAL,
+        finished_at  REAL,
+        spent_usd    REAL NOT NULL DEFAULT 0,
+        error        TEXT,
+        triggered_by TEXT,
+        FOREIGN KEY (pipeline_id) REFERENCES pipelines(id) ON DELETE CASCADE
+    )
+    """,
+    # ---- Phase F: Contacts ----
+    """
+    CREATE TABLE IF NOT EXISTS contacts (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        email           TEXT NOT NULL UNIQUE,
+        first_name      TEXT,
+        last_name       TEXT,
+        phone           TEXT,
+        tags_json       TEXT NOT NULL DEFAULT '[]',
+        source          TEXT,
+        consent_marketing INTEGER NOT NULL DEFAULT 0,
+        consent_at      REAL,
+        unsubscribed_at REAL,
+        custom_json     TEXT NOT NULL DEFAULT '{}',
+        created_at      REAL NOT NULL,
+        updated_at      REAL NOT NULL
+    )
+    """,
+    # ---- Phase F: Campaigns ----
+    """
+    CREATE TABLE IF NOT EXISTS campaigns (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT NOT NULL,
+        subject     TEXT,
+        channel     TEXT NOT NULL DEFAULT 'email',
+        status      TEXT NOT NULL DEFAULT 'draft',
+        audience_query TEXT,
+        send_at     REAL,
+        body_html   TEXT,
+        body_text   TEXT,
+        created_at  REAL NOT NULL,
+        updated_at  REAL NOT NULL
+    )
+    """,
+    # ---- Phase F: Landing pages ----
+    """
+    CREATE TABLE IF NOT EXISTS landing_pages (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug        TEXT NOT NULL UNIQUE,
+        title       TEXT NOT NULL,
+        body_html   TEXT NOT NULL DEFAULT '',
+        form_schema TEXT NOT NULL DEFAULT '{}',
+        consent_text TEXT,
+        published   INTEGER NOT NULL DEFAULT 0,
+        created_at  REAL NOT NULL,
+        updated_at  REAL NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS landing_submissions (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        page_id     INTEGER NOT NULL,
+        payload_json TEXT NOT NULL DEFAULT '{}',
+        created_at  REAL NOT NULL,
+        FOREIGN KEY (page_id) REFERENCES landing_pages(id) ON DELETE CASCADE
+    )
+    """,
+    # ---- Phase F: Social posts ----
+    """
+    CREATE TABLE IF NOT EXISTS social_posts (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform      TEXT NOT NULL,
+        account       TEXT,
+        body          TEXT NOT NULL,
+        media_url     TEXT,
+        scheduled_at  REAL,
+        published_at  REAL,
+        status        TEXT NOT NULL DEFAULT 'draft',
+        external_id   TEXT,
+        error         TEXT,
+        created_at    REAL NOT NULL,
+        updated_at    REAL NOT NULL
+    )
+    """,
+    # ---- Phase F: Analytics events ----
+    """
+    CREATE TABLE IF NOT EXISTS analytics_events (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind        TEXT NOT NULL,
+        ref         TEXT,
+        value_num   REAL NOT NULL DEFAULT 0,
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        created_at  REAL NOT NULL
+    )
+    """,
+    # ---- Phase F: Scheduled jobs (queue) ----
+    """
+    CREATE TABLE IF NOT EXISTS scheduled_jobs (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT NOT NULL,
+        kind        TEXT NOT NULL,
+        payload_json TEXT NOT NULL DEFAULT '{}',
+        run_at      REAL NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'queued',
+        last_error  TEXT,
+        created_at  REAL NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_pipeline_runs_pipeline ON pipeline_runs(pipeline_id)",
+    "CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status)",
 ]
 
 

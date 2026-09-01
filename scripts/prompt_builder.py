@@ -1,4 +1,4 @@
-"""Prompt builder — assembles the generation prompt from a reference + brand voice.
+"""Prompt builder. Assembles the generation prompt from a reference + brand voice.
 
 Given a reference (style tags, theme, composition, audio trend) and a brand
 voice (from brand/captions/reference_captions.json), assembles:
@@ -23,7 +23,7 @@ from typing import Iterable
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CAPTIONS_FILE = REPO_ROOT / "brand" / "captions" / "reference_captions.json"
 
-# Negative prompt base — anything in here is anti-brand or low quality.
+# Negative prompt base. Anything in here is anti-brand or low quality.
 NEGATIVE_BASE = [
     "blurry", "low quality", "worst quality", "jpeg artifacts",
     "watermark", "signature", "username",
@@ -34,7 +34,7 @@ NEGATIVE_BASE = [
     "money", "cash", "betting odds", "jackpot", "prize", "lucky draw",
 ]
 
-# Caption template fragments — pick one to anchor the structure.
+# Caption template fragments. Pick one to anchor the structure.
 CAPTION_TEMPLATES = {
     "pull_reaction": [
         "just pulled a {cabinet_color} {figure_name} I didn't even know was in this drop",
@@ -44,7 +44,7 @@ CAPTION_TEMPLATES = {
         "{cabinet_color} cabinet restocked. someone please go pull before I burn my wallet down again",
     ],
     "tier_list": [
-        "new tier list up. {take} tier is honestly fewer figures than I expected — the {figure_name} carries harder than people think",
+        "new tier list up. {take} tier is honestly fewer figures than I expected. The {figure_name} carries harder than people think",
     ],
     "set_completion": [
         "{progress} on the {drop_name} drop. {remaining} more and I can stop refreshing at 2am",
@@ -62,7 +62,7 @@ CABINET_COLORS = ["pink", "blue", "damascus", "orange", "purple", "red", "white"
 
 @dataclass(frozen=True)
 class Prompt:
-    """The output of the prompt builder — fed into ComfyUI + the social caption."""
+    """The output of the prompt builder. Fed into ComfyUI + the social caption."""
 
     positive: str
     negative: str
@@ -87,7 +87,7 @@ def _load_caption_examples() -> list[dict]:
 def _positive_base(reference_style_tags: Iterable[str], theme: str) -> str:
     """Build the ComfyUI positive prompt from style tags."""
     tags = list(reference_style_tags) or ["cinematic", "high quality", "sharp focus"]
-    # Brand anchors — these always appear so we don't drift
+    # Brand anchors. These always appear so we don't drift.
     anchors = [
         "gacha capsule toy",
         "Japanese capsule machine",
@@ -123,7 +123,7 @@ def _build_caption(theme: str, rng: random.Random | None = None) -> str:
         return "new drop just landed. check the tier list."
 
     template = rng.choice(templates)
-    # Fill basic placeholders with random values — Adam or the operator
+    # Fill basic placeholders with random values. Adam or the operator
     # can replace these with real, contextually-aware values later.
     return template.format(
         cabinet_color=rng.choice(CABINET_COLORS),

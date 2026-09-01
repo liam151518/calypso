@@ -1,10 +1,10 @@
-"""app/jobs.py — in-process job tracker for video generation.
+"""app/jobs.py. In-process job tracker for video generation.
 
 Each generation request becomes a `Job` with an id, status, output path, and
 metadata. The Flask server kicks off work in a background thread and exposes
 the job to the UI via GET /generate/<job_id>/status (HTMX-pollable).
 
-This module is deliberately small — no broker, no Redis. The process is a
+This module is deliberately small. No broker, no Redis. The process is a
 desktop app, and losing jobs on restart is acceptable.
 
 Used by: app/server.py (Generate routes).
@@ -33,7 +33,7 @@ OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 VALID_MODELS = ("auto", "h3-cloud", "h3-max", "kling")  # legacy aliases
 VALID_RESOLUTIONS = ("480p", "768p", "1080p")
 
-# Canonical alias for the SPA model picker — uses fal.ai endpoint ids.
+# Canonical alias for the SPA model picker. Uses fal.ai endpoint ids.
 # "auto" stays as a legacy fallback so existing form submissions keep working.
 LEGACY_TO_MODEL = {
     "auto": "minimax/h3",
@@ -158,8 +158,8 @@ def create_batch(
 ) -> tuple[str, list[Job]]:
     """Create a batch of jobs from a list of (ref_id, ref_path) tuples.
 
-    Returns the batch_id and the list of created Jobs (NOT yet started —
-    the caller decides when to spawn threads).
+    Returns the batch_id and the list of created Jobs (NOT yet started.
+    The caller decides when to spawn threads).
     """
     batch_id = make_batch_id()
     jobs: list[Job] = []
@@ -264,7 +264,7 @@ def run_job(job: Job) -> None:
             job.error = f"Input error: {exc.code}"
             job.error_trace = None
             job.touch()
-    except Exception as exc:  # noqa: BLE001 — broad catch so background thread never dies silently
+    except Exception as exc:  # noqa: BLE001. Broad catch so background thread never dies silently.
         with job._lock:
             job.status = "failed"
             job.error = str(exc)
@@ -280,5 +280,5 @@ def start_job(job: Job) -> threading.Thread:
 
 
 def safe_urlretrieve(url: str, dest: Path) -> None:
-    """Helper for tests — equivalent to urllib.request.urlretrieve but mockable."""
+    """Helper for tests. Equivalent to urllib.request.urlretrieve but mockable."""
     urllib.request.urlretrieve(url, dest)

@@ -153,7 +153,7 @@
     "info": {
       "name": "GatchaKingdom H3 Reference-to-Video (Local Benchmark)",
       "author": "GatchaKingdom Pipeline",
-      "description": "Local MiniMax H3 reference-to-video template using ComfyUI 0.30+ native nodes. Used for Phase 4 local benchmark on the RTX 5070. The 33B H3 Omni Transformer is too large for 12 GB VRAM at full BF16 — this template is the harness for testing quantized variants.",
+      "description": "Local MiniMax H3 reference-to-video template using ComfyUI 0.30+ native nodes. Used for Phase 4 local benchmark on the RTX 5070. The 33B H3 Omni Transformer is too large for 12 GB VRAM at full BF16. This template is the harness for testing quantized variants.",
       "version": "1.0.0"
     }
   },

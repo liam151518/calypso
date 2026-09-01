@@ -1,6 +1,6 @@
 ---
 name: calibrate
-description: One-time Adam calibration — interviews the operator to fill in adam/context/.
+description: One-time Adam calibration. Interviews the operator to fill in adam/context/.
 ---
 
 # Calibrate

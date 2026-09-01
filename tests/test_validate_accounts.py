@@ -2,7 +2,7 @@
 
 Run: `python -m pytest tests/test_validate_accounts.py -v`
 
-These tests verify the validator's behavior without making real API calls —
+These tests verify the validator's behavior without making real API calls.
 they use monkeypatching and fake HTTP servers.
 """
 

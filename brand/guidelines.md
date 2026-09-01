@@ -1,10 +1,10 @@
-# Gatcha Kingdom — Brand Guidelines
+# Gatcha Kingdom. Brand Guidelines
 
 > Pre-populated from `/Volumes/Content SSD/Gacha Luka/docs/STYLE_GUIDE.md` and `tailwind.config.ts` (read-only sources).
 > Adam will extend this during the `intake` skill.
 
 **Brand spelling:** **Gatcha** Kingdom (not "Gacha").
-**Tagline:** *Japan-gacha digital storefront — spin online, check in IRL, collect everything.*
+**Tagline:** *Japan-gacha digital storefront. Spin online, check in IRL, collect everything.*
 **Live site:** https://gatcha-kingdom-psi.vercel.app
 **Launch market:** South Africa, starting in Johannesburg.
 
@@ -12,11 +12,11 @@
 
 ## 1. Core feeling
 
-**Nostalgic Tokyo arcade meets modern kawaii digital storefront.** Stepping into a brightly lit gacha-gacha corner in Akihabara — exciting, slightly chaotic, always friendly.
+**Nostalgic Tokyo arcade meets modern kawaii digital storefront.** Stepping into a brightly lit gacha-gacha corner in Akihabara. Exciting, slightly chaotic, always friendly.
 
 **Brand attributes:** Playful · Nostalgic (Showa-era arcade) · Energetic (neon, candy colours) · Trustworthy (clean layouts, clear CTAs) · Collectible (designs, badges, completionist streaks)
 
-**Mascot:** Small round cat (maneki-neko as a capsule toy) — use sparingly as decoration and loading indicator.
+**Mascot:** Small round cat (maneki-neko as a capsule toy). Use sparingly as decoration and loading indicator.
 
 ---
 
@@ -141,9 +141,9 @@ Capsule-themed / chunky rounded icons (Phosphor or custom).
 - Don't imply gambling, betting, or chance-of-nothing outcomes.
 - Don't use "you could win" or "win big" framing.
 - Don't lead with the empty wallet / sad face. Lead with the joy of the reveal.
-- Don't use stock photo people — when humans appear, use real-feeling, gacha-kid energy (excited, hand-on-chest reaction).
+- Don't use stock photo people. When humans appear, use real-feeling, gacha-kid energy (excited, hand-on-chest reaction).
 - Don't use Western casino iconography (dice, cards, slot reels).
-- Don't use the mascot excessively — it's a decoration, not a co-host.
+- Don't use the mascot excessively. It's a decoration, not a co-host.
 
 ---
 

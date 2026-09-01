@@ -1,4 +1,4 @@
-"""setup-adam — project bootstrap for Adam.
+"""setup-adam. Project bootstrap for Adam.
 
 Idempotent: run any time, safe to repeat.
 

@@ -1,4 +1,4 @@
-# Folder B — Logo Pack
+# Folder B. Logo Pack
 
 **Source:** `/Volumes/Content SSD/Gacha Luka/Logo/` and `/Volumes/Content SSD/Gacha Luka/public/`
 **Status:** Seeded 2026-08-31. **Do not modify files in this folder after this date.**
@@ -24,7 +24,7 @@
 
 ## Watermark variants
 
-You (or Adam during `intake`) need to create a true **watermark variant** — a transparent PNG version of the logo with white outline suitable for placement on dark backgrounds. To generate one:
+You (or Adam during `intake`) need to create a true **watermark variant**. A transparent PNG version of the logo with white outline suitable for placement on dark backgrounds. To generate one:
 
 ```bash
 # On the Windows PC, inside the ComfyUI Python venv

@@ -1,4 +1,4 @@
-"""Generation router — picks the right video backend per request.
+"""Generation router. Picks the right video backend per request.
 
 Given a video request spec (duration, resolution, tier), the router decides:
 - MiniMax H3 cloud (primary, best quality, native audio, matches reference-driven philosophy)

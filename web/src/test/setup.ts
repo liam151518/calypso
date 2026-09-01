@@ -58,7 +58,7 @@ class IntersectionObserverStub {
   IntersectionObserverStub;
 
 // Silence noisy console.error from Radix in jsdom (it warns about portals being
-// appended to detached subtrees — irrelevant in unit tests).
+// appended to detached subtrees, which is irrelevant in unit tests).
 const originalError = console.error;
 console.error = (...args: unknown[]) => {
   const first = args[0];

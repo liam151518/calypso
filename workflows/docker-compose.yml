@@ -1,4 +1,4 @@
-# n8n + Social Stats — Docker Compose for the Windows PC
+# n8n + Social Stats. Docker Compose for the Windows PC
 #
 # Run from C:\n8n-data\ on the Windows PC:
 #   mkdir C:\n8n-data
@@ -27,10 +27,10 @@ services:
       - TZ=${TZ:-Africa/Johannesburg}
       # Webhook URL (set this to your tunneled URL when you have one)
       - WEBHOOK_URL=http://localhost:5678/
-      # Database — SQLite for now, swap to Postgres for production
+      # Database. SQLite for now, swap to Postgres for production.
       - DB_TYPE=sqlite
       - DB_SQLITE_DATABASE=/home/node/.n8n/database.sqlite
-      # Encryption key — generate with: openssl rand -hex 32
+      # Encryption key. Generate with: openssl rand -hex 32
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-please-change-me-with-openssl-rand-hex-32}
       # Disable telemetry
       - N8N_TELEMETRY_DISABLED=true

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Calypso — local-first Flask web UI launcher.
+# Calypso. Local-first Flask web UI launcher.
 # Run me once after cloning: `bash run.sh`
-# Re-running is safe — installs are skipped if already done.
+# Re-running is safe. Installs are skipped if already done.
 
 set -euo pipefail
 
@@ -9,7 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 ROOT="$(pwd)"
 
-# Pick a Python — prefer python3, fall back to python
+# Pick a Python. Prefer python3, fall back to python.
 if command -v python3 >/dev/null 2>&1; then
   PY=python3
 elif command -v python >/dev/null 2>&1; then
@@ -33,13 +33,13 @@ echo "→ installing dependencies"
 "$VENV_DIR/bin/pip" install --upgrade pip >/dev/null
 "$VENV_DIR/bin/pip" install -q -r "$REQ_FILE"
 
-# Build the React SPA (idempotent — skipped if already built and node_modules present).
+# Build the React SPA (idempotent. Skipped if already built and node_modules present).
 if [ -d "$ROOT/web" ]; then
   echo "→ building SPA"
   bash "$ROOT/scripts/build_web.sh"
 fi
 
-# Pick a port — allow override via CALYPSO_PORT
+# Pick a port. Allow override via CALYPSO_PORT.
 PORT="${CALYPSO_PORT:-8765}"
 export CALYPSO_PORT="$PORT"
 

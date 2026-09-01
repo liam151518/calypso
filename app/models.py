@@ -1,4 +1,4 @@
-"""app/models.py — registry of fal.ai models supported by Calypso.
+"""app/models.py. Registry of fal.ai models supported by Calypso.
 
 Each entry has a `category` (video | image), a fal.ai endpoint id, a display
 name, supported resolutions / aspect ratios / durations, and a per-second
@@ -195,7 +195,7 @@ def _fetch_fal_models(api_key: str | None, timeout: float = 3.0) -> list[ModelSp
     """Best-effort fetch of fal.ai's models endpoint.
 
     Returns an empty list on any failure (network, auth, parse). The hardcoded
-    top-10 always remains the source of truth — anything returned here is
+    top-10 always remains the source of truth. Anything returned here is
     only used to enrich the picker with availability hints.
     """
     if not api_key:
@@ -262,7 +262,7 @@ def estimate_cost(
     """Return {usd, model_id, category, inputs} for a given request.
 
     Falls back to a sensible default (0.05 USD) when the model or knob is
-    unknown — so the SPA still renders an estimate rather than NaN.
+    unknown, so the SPA still renders an estimate rather than NaN.
     """
     spec = _BY_ID.get(model_id)
     if spec is None:

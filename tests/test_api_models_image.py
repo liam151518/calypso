@@ -111,7 +111,7 @@ def test_api_image_generate_creates_job(client, tmp_path, monkeypatch):
     env_path.write_text("FAL_API_KEY=fake\n")
     monkeypatch.setattr(image_jobs, "_read_fal_key", lambda: "fake")
 
-    # Don't actually start the run — we'll verify job creation only.
+    # Don't actually start the run. We'll verify job creation only.
     def fake_start(job):
         job.status = "succeeded"
         job.output_paths = [str(jobs.OUTPUTS_DIR / job.job_id / "image-1.png")]

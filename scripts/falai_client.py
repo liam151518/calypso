@@ -1,9 +1,9 @@
-"""fal.ai client — H3 Max (speed tier) and Kling 2.6 Pro (hero tier).
+"""fal.ai client. H3 Max (speed tier) and Kling 2.6 Pro (hero tier).
 
 fal.ai is the fastest way to call multiple video models behind one API.
 We use it for:
-- MiniMax H3 Max — high-volume dailies (480p/768p, faster than base H3)
-- Kling 2.6 Pro — 1/week hero posts (cinematic, $0.07/s)
+- MiniMax H3 Max: high-volume dailies (480p/768p, faster than base H3)
+- Kling 2.6 Pro: 1/week hero posts (cinematic, $0.07/s)
 
 Setup: docs/accounts.md → fal.ai
 

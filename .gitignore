@@ -31,7 +31,7 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
-# Node (kept defensive — not used but harmless if accidentally installed)
+# Node (kept defensive. Not used but harmless if accidentally installed)
 node_modules/
 .pnpm-store/
 .next/
@@ -71,7 +71,7 @@ n8n/.n8n/
 social-stats/data/
 social-stats/.env
 
-# ComfyUI models (large, license-restricted — install separately)
+# ComfyUI models (large, license-restricted. Install separately)
 comfyui/models/
 !comfyui/models/.gitkeep
 

@@ -1,4 +1,4 @@
-# Folder A — Reference metadata schema
+# Folder A. Reference metadata schema
 
 Every file in `references/ready/`, `references/inbox/`, and `references/archived/` is a JSON document that matches this schema. The reference picker (`scripts/reference_picker.py`) reads these files.
 

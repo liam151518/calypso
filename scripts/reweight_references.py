@@ -80,7 +80,7 @@ def reweight(
     if not references:
         return {"processed": 0, "message": "no references to process"}
 
-    # Engagement data is loaded externally — this is a placeholder for the
+    # Engagement data is loaded externally. This is a placeholder for the
     # full re-weighting. The script returns a summary based on existing
     # engagement_tier values so it can be tested.
     tiers: dict[str, int] = {}

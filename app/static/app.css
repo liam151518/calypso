@@ -1,12 +1,12 @@
 /* ============================================================================
- * Calypso — Operator Console
+ * Calypso Operator Console
  *
  * Operate mode. Single operator drives an AI video pipeline: pick refs,
  * write or load a prompt, dispatch a job, watch progress, manage outputs.
  *
  * Direction: a serious producer tool, not a stylized showcase. One sans
  * (Inter) carries everything except code and data, which use JetBrains
- * Mono. A single signal-orange is the only chromatic note — primary
+ * Mono. A single signal-orange is the only chromatic note. Primary
  * action, selection, focus, status-running. Everything else is neutral.
  *
  * Structure: a fixed sidebar rail + a content surface with elevated
@@ -72,7 +72,7 @@
   --text-3:       #8b8780;
   --text-4:       #5e5b55;
 
-  /* Accent — single signal */
+  /* Accent. Single signal. */
   --signal:       #ff6a1f;
   --signal-hi:    #ff8649;
   --signal-deep:  #c45210;
@@ -96,7 +96,7 @@
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* Type scale — fixed rem, 1.2 ratio */
+  /* Type scale. Fixed rem, 1.2 ratio. */
   --t-12: 12px;
   --t-13: 13px;
   --t-14: 14px;
@@ -107,7 +107,7 @@
   --t-28: 28px;
   --t-34: 34px;
 
-  /* Motion — short, purposeful */
+  /* Motion. Short, purposeful. */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --fast: 120ms;
   --med:  180ms;
@@ -622,7 +622,7 @@ body {
 }
 
 /* ============================================================================
- * Generate page — two-column form
+ * Generate page (two-column form)
  * ========================================================================== */
 
 .generate-grid {
@@ -891,7 +891,7 @@ body {
 .draft-item-fav.is-favorite { color: var(--signal); }
 
 /* ============================================================================
- * Empty states — instructive, not italic
+ * Empty states (instructive, not italic)
  * ========================================================================== */
 
 .empty-state {
@@ -1146,7 +1146,7 @@ body {
 .prompt-actions { margin-top: 10px; }
 
 /* ============================================================================
- * References page — tag sidebar + grid + tag editor
+ * References page (tag sidebar + grid + tag editor)
  * ========================================================================== */
 
 .refs-layout {
@@ -1268,7 +1268,7 @@ body {
 .upload-card .field { margin-bottom: 0; }
 
 /* ============================================================================
- * Brand page — sidebar + editor
+ * Brand page (sidebar + editor)
  * ========================================================================== */
 
 .brand-layout {
@@ -1419,7 +1419,7 @@ body {
 .recent-row .recent-meta { color: var(--text-3); font-family: var(--font-mono); font-size: 11px; text-align: right; }
 
 /* ============================================================================
- * Utility — used in templates
+ * Utility (used in templates)
  * ========================================================================== */
 .mono { font-family: var(--font-mono); }
 .nowrap { white-space: nowrap; }

@@ -186,7 +186,7 @@ class TestClassify:
         assert result.suggested_action == "forward_to_operator"
 
     def test_payment_takes_precedence_over_other_intents(self):
-        # This message has both "refund" and "spin" — payment should win
+        # This message has both "refund" and "spin". Payment should win.
         result = classify("I want a refund, also which spin should I do")
         assert result.intent == Intent.PAYMENT_RELATED
 

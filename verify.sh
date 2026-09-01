@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# verify.sh — the single hard gate for the ad pipeline.
+# verify.sh. The single hard gate for the ad pipeline.
 #
 # Per the Adam plan, `orchestrate-build` re-runs this before merge. Builders
 # (sub-agents) cannot merge until every check passes.
 #
 # Run from anywhere: `bash verify.sh` or `./verify.sh`
 #
-# Exits 0 on success, 1 on first failure. Each section is independent — a
+# Exits 0 on success, 1 on first failure. Each section is independent. A
 # failure in one section doesn't block the others from running.
 
 set -uo pipefail
@@ -33,12 +33,12 @@ info()    { echo "        $*"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "${BLUE}verify.sh${RESET} — Gatcha Kingdom ad pipeline"
+echo "${BLUE}verify.sh${RESET}: Gatcha Kingdom ad pipeline"
 echo "Project root: $SCRIPT_DIR"
-echo "Phase: $(test -f docs/PHASE_1.md && echo 'Phase 1+ — most checks active' || echo 'Phase 0 — folder scaffold only')"
+echo "Phase: $(test -f docs/PHASE_1.md && echo 'Phase 1+. Most checks active' || echo 'Phase 0. Folder scaffold only')"
 
 # ============================================================
-# Section 1 — Folder structure (Phase 0)
+# Section 1. Folder structure (Phase 0)
 # ============================================================
 section "1. Folder structure"
 
@@ -64,7 +64,7 @@ for f in README.md .gitignore verify.sh docs/PHASE_0.md docs/PHASE_1.md docs/PHA
 done
 
 # ============================================================
-# Section 2 — Brand pack (Phase 1.1)
+# Section 2. Brand pack (Phase 1.1)
 # ============================================================
 section "2. Brand pack integrity"
 
@@ -96,11 +96,11 @@ if command -v python3 >/dev/null 2>&1; then
     fail "reference_captions.json is not valid JSON"
   fi
 else
-  skip "python3 not available — skipping JSON validation"
+  skip "python3 not available. Skipping JSON validation"
 fi
 
 # ============================================================
-# Section 3 — Gacha Luka boundary (never edit the live site)
+# Section 3. Gacha Luka boundary (never edit the live site)
 # ============================================================
 section "3. Boundary: Gacha Luka is read-only"
 
@@ -109,16 +109,16 @@ if [[ -d "$GACHA_LUKA" ]]; then
   if [[ ! -w "$GACHA_LUKA" ]]; then
     pass "Gacha Luka is not writable from this script's perspective"
   else
-    # It's writable, but the rule is convention — just verify we didn't write today
-    info "Gacha Luka is writable on disk (it's your folder). The boundary is convention — this repo doesn't touch it."
+    # It's writable, but the rule is convention. Just verify we didn't write today.
+    info "Gacha Luka is writable on disk (it's your folder). The boundary is convention. This repo doesn't touch it."
   fi
   info "Gacha Luka is at: $GACHA_LUKA"
 else
-  skip "Gacha Luka not found at $GACHA_LUKA — if this is a different machine, ignore"
+  skip "Gacha Luka not found at $GACHA_LUKA. If this is a different machine, ignore."
 fi
 
 # ============================================================
-# Section 4 — Reference library (Phase 1.2)
+# Section 4. Reference library (Phase 1.2)
 # ============================================================
 section "4. Reference library"
 
@@ -139,7 +139,7 @@ else
 fi
 
 # ============================================================
-# Section 5 — Tests (Phase 2+)
+# Section 5. Tests (Phase 2+)
 # ============================================================
 section "5. Tests"
 
@@ -151,14 +151,14 @@ if [[ -d tests ]] && compgen -G "tests/test_*.py" > /dev/null; then
       fail "pytest suite had failures"
     fi
   else
-    skip "pytest not installed — install with 'pip install pytest' to enable"
+    skip "pytest not installed. Install with 'pip install pytest' to enable."
   fi
 else
   skip "no tests yet (Phase 2 hasn't shipped)"
 fi
 
 # ============================================================
-# Section 6 — Adam + Agent-Reach (user-side install check)
+# Section 6. Adam + Agent-Reach (user-side install check)
 # ============================================================
 section "6. Adam + Agent-Reach installation (user-side)"
 
@@ -174,7 +174,7 @@ for d in "$HOME/.cursor/skills" "$HOME/.agents/skills" "$HOME/.claude/skills"; d
 done
 
 if [[ "$ADAM_INSTALLED" == false ]]; then
-  skip "Adam skills not found in ~/.cursor/skills, ~/.agents/skills, or ~/.claude/skills — run Phase 0 install"
+  skip "Adam skills not found in ~/.cursor/skills, ~/.agents/skills, or ~/.claude/skills. Run Phase 0 install."
 fi
 
 if command -v agent-reach >/dev/null 2>&1; then
@@ -183,15 +183,15 @@ if command -v agent-reach >/dev/null 2>&1; then
     if agent-reach doctor 2>&1 | grep -qE '(healthy|all green|✓)'; then
       pass "agent-reach doctor reports healthy"
     else
-      info "agent-reach doctor ran but didn't report fully healthy — check output manually"
+      info "agent-reach doctor ran but didn't report fully healthy. Check output manually."
     fi
   fi
 else
-  skip "agent-reach CLI not installed — run Phase 0 install"
+  skip "agent-reach CLI not installed. Run Phase 0 install."
 fi
 
 # ============================================================
-# Section 7 — Local infrastructure (Phase 1.3, runs on Windows PC)
+# Section 7. Local infrastructure (Phase 1.3, runs on Windows PC)
 # ============================================================
 section "7. Local infrastructure (Windows PC check)"
 
@@ -221,17 +221,17 @@ if [[ "$(uname -s 2>/dev/null)" == "MINGW64_NT"* ]] || [[ "$(uname -s 2>/dev/nul
     if nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | grep -qi "RTX 5070"; then
       pass "RTX 5070 detected via nvidia-smi"
     else
-      info "nvidia-smi ran but didn't show RTX 5070 — check driver"
+      info "nvidia-smi ran but didn't show RTX 5070. Check driver."
     fi
   else
     skip "nvidia-smi not in PATH (install NVIDIA drivers)"
   fi
 else
-  info "not on Windows — GPU checks skipped (run on the Windows PC for full verify)"
+  info "not on Windows. GPU checks skipped (run on the Windows PC for full verify)"
 fi
 
 # ============================================================
-# Section 8 — Env vars (Phase 1.4)
+# Section 8. Env vars (Phase 1.4)
 # ============================================================
 section "8. Required environment variables"
 
@@ -248,7 +248,7 @@ if [[ -f .env ]]; then
     if grep -qE "^${var}=" .env 2>/dev/null && ! grep -qE "^${var}=$" .env 2>/dev/null; then
       pass "env var set: $var"
     else
-      info "env var missing or empty: $var (waiting on platform approval — see docs/accounts.md)"
+      info "env var missing or empty: $var (waiting on platform approval. See docs/accounts.md.)"
     fi
   done
 else
@@ -257,18 +257,18 @@ else
 fi
 
 # ============================================================
-# Section 9 — .env.example exists for the user to copy
+# Section 9. .env.example exists for the user to copy
 # ============================================================
 section "9. .env.example present"
 
 if [[ -f .env.example ]]; then
   pass ".env.example exists (copy to .env and fill in)"
 else
-  fail ".env.example missing — Adam should generate this during Phase 1.4"
+  fail ".env.example missing. Adam should generate this during Phase 1.4."
 fi
 
 # ============================================================
-# Section 10 — Project-level Adam install
+# Section 10. Project-level Adam install
 # ============================================================
 section "10. Project-level Adam install (.cursor/skills)"
 
@@ -278,10 +278,10 @@ if [[ -d "$PROJECT_SKILLS_DIR" ]]; then
   if [[ "$PROJECT_SKILL_COUNT" -ge 5 ]]; then
     pass "project skills installed: $PROJECT_SKILL_COUNT at $PROJECT_SKILLS_DIR/"
   else
-    info "project skills present but only $PROJECT_SKILL_COUNT — run scripts/setup_adam.py"
+    info "project skills present but only $PROJECT_SKILL_COUNT. Run scripts/setup_adam.py."
   fi
 else
-  skip "no project-level .cursor/skills/ — run scripts/setup_adam.py"
+  skip "no project-level .cursor/skills/. Run scripts/setup_adam.py."
 fi
 
 for f in packet/ plan/ slices/ agent-control/ adam/context/ adam/memory/; do
@@ -291,14 +291,14 @@ for f in packet/ plan/ slices/ agent-control/ adam/context/ adam/memory/; do
 done
 
 # ============================================================
-# Section 11 — Flask web UI (app/)
+# Section 11. Flask web UI (app/)
 # ============================================================
 section "11. Flask web UI"
 
 if [[ -f app/server.py ]]; then
   pass "app/server.py exists"
 else
-  fail "app/server.py missing — the Flask app is gone"
+  fail "app/server.py missing. The Flask app is gone."
 fi
 
 if [[ -f app/requirements.txt ]]; then
@@ -341,7 +341,7 @@ if command -v python3 >/dev/null 2>&1; then
       info ".calypso/ not present yet (created on first run)"
     fi
   else
-    fail "create_app() raised — check import paths and SQL schema"
+    fail "create_app() raised. Check import paths and SQL schema."
   fi
 fi
 
@@ -351,7 +351,7 @@ for asset in app.css htmx.min.js; do
   fi
 done
 
-# Fonts — production-grade design requires self-hosted type
+# Fonts. Production-grade design requires self-hosted type.
 for font in inter-400.ttf inter-500.ttf inter-600.ttf jetbrains-mono-400.ttf jetbrains-mono-500.ttf; do
   if [[ -f "app/static/fonts/$font" ]]; then pass "font: $font"
   else fail "missing font: app/static/fonts/$font"
@@ -366,10 +366,10 @@ fi
 
 # Make sure no leftover Next.js / FastAPI cruft
 if [[ -d ui ]]; then
-  fail "ui/ directory still exists — should have been removed in favor of app/"
+  fail "ui/ directory still exists. Should have been removed in favor of app/"
 fi
 if [[ -f package.json ]]; then
-  fail "root package.json still exists — npm should be gone"
+  fail "root package.json still exists. npm should be gone."
 fi
 
 # ============================================================
@@ -380,7 +380,7 @@ section "Summary"
 TOTAL=$((PASS_COUNT + FAIL_COUNT + SKIP_COUNT))
 echo "  ${GREEN}PASS${RESET}: $PASS_COUNT"
 echo "  ${RED}FAIL${RESET}: $FAIL_COUNT"
-echo "  ${YELLOW}SKIP${RESET}: $SKIP_COUNT (these are phase-dependent — expected during Phase 0/1)"
+echo "  ${YELLOW}SKIP${RESET}: $SKIP_COUNT (these are phase-dependent. Expected during Phase 0/1.)"
 echo "  Total checks: $TOTAL"
 echo
 

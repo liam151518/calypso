@@ -1,4 +1,4 @@
-"""Tests for app/brand.py — brand profiles + active brand + compose."""
+"""Tests for app/brand.py. Brand profiles + active brand + compose."""
 
 from __future__ import annotations
 

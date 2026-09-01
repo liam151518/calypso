@@ -1,4 +1,4 @@
-"""app/brand.py — brand profiles + active brand pointer.
+"""app/brand.py. Brand profiles + active brand pointer.
 
 A brand profile is a bundle of stylistic context that is prepended to every
 Generate submit so the model gets the same vocabulary the user has locked in.
@@ -26,7 +26,7 @@ ACTIVE_BRAND_KEY = "active_brand_id"
 # ---------- colour helpers ----------
 
 def _normalise_hex(c: str) -> str:
-    """Accept 'ff6a1f', '#FF6A1F', or 'rgb(255,106,31)' — return '#rrggbb'."""
+    """Accept 'ff6a1f', '#FF6A1F', or 'rgb(255,106,31)'. Return '#rrggbb'."""
     c = (c or "").strip()
     if not c:
         return ""
@@ -227,7 +227,7 @@ def compose_prompt(prompt: str, brand_id: int | str | None = None) -> str:
     the user prompt is returned unchanged.
 
     The user prompt is always preserved verbatim at the bottom of the
-    block — so reading the original prompt is unambiguous.
+    block, so reading the original prompt is unambiguous.
     """
     brand = get_brand(brand_id) if brand_id is not None else get_active_brand()
     if brand is None:

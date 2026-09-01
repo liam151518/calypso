@@ -31,13 +31,13 @@ class FakeTelegram(BaseHTTPRequestHandler):
         pass
 
     def do_POST(self):  # noqa: N802
-        # Parse multipart body (very loosely — extract caption + reply_markup)
+        # Parse multipart body (very loosely: extract caption + reply_markup)
         content_type = self.headers.get("Content-Type", "")
         body = self.rfile.read(int(self.headers.get("Content-Length", "0"))).decode("latin-1", errors="ignore")
 
         caption = ""
         reply_markup = ""
-        # Naive extraction — find captions and reply_markup
+        # Naive extraction. Find captions and reply_markup.
         for line in body.split("\r\n"):
             if line.startswith("Content-Disposition"):
                 continue
@@ -136,7 +136,7 @@ def sample_photo(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def sample_video(tmp_path: Path) -> Path:
-    # A minimal MP4 — just a file with the right extension
+    # A minimal MP4. Just a file with the right extension.
     path = tmp_path / "test.mp4"
     path.write_bytes(b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 100)
     return path

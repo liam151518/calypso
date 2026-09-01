@@ -1,4 +1,4 @@
-"""generate.py — single-command video generator.
+"""generate.py. Single-command video generator.
 
 The simplest possible interface to the pipeline:
 
@@ -115,7 +115,7 @@ def resolve_reference(explicit: str | None) -> tuple[Path | None, str | None]:
 
     local = PROJECT_ROOT / chosen.local_path
     if not local.exists():
-        # Reference metadata exists but the asset is missing — skip silently
+        # Reference metadata exists but the asset is missing. Skip silently.
         return None, None
 
     return local, chosen.source_url
@@ -189,7 +189,7 @@ def generate(
     ref_path, ref_url = resolve_reference(reference)
     ref_url_or_uploaded = ref_url
     if ref_path and not ref_url:
-        # Reference is local — we need to upload it for the API to see it
+        # Reference is local. We need to upload it for the API to see it.
         if dry_run:
             print(f"[dry-run] would upload {ref_path} to a public host")
             ref_url_or_uploaded = f"https://example.invalid/{ref_path.name}"
@@ -273,7 +273,7 @@ def _cli() -> int:
         "--model",
         choices=["auto", "h3-cloud", "h3-max", "kling"],
         default="auto",
-        help="Which model to route to (default: auto — H3 cloud if key present, else H3 Max via fal.ai)",
+        help="Which model to route to (default: auto. H3 cloud if key present, else H3 Max via fal.ai)",
     )
     parser.add_argument(
         "--reference",

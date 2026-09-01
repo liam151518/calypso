@@ -1,4 +1,4 @@
-"""app/server.py — Flask app for Calypso's local web UI + JSON API.
+"""app/server.py. Flask app for Calypso's local web UI + JSON API.
 
 Legacy HTML routes (for the existing Jinja UI and tests):
     GET  /                          → redirect to /generate
@@ -115,6 +115,24 @@ def create_app() -> Flask:
     # Make sure the structured-data DB exists before any route touches it.
     app_db.init_db()
 
+    # Phase D: discover + auto-enable built-in extensions. Community
+    # extensions live in $CALYPSO_EXTENSIONS_DIR (default ~/.calypso/extensions).
+    try:
+        from app.extensions import loader as ext_loader
+
+        ext_loader.discover()
+        ext_loader.load_builtin_extensions()
+        ext_loader.restore_state()
+    except Exception:  # noqa: BLE001
+        pass
+
+    # Phase F.7: boot the in-process scheduler (single instance per process).
+    try:
+        from app.marketing import scheduler as m_scheduler
+        m_scheduler.start()
+    except Exception:  # noqa: BLE001
+        pass
+
     _register_routes(app)
     _register_api_routes(app)
     _register_spa_fallback(app)
@@ -134,7 +152,7 @@ def wants_json() -> bool:
 
 
 def spa_serving_enabled() -> bool:
-    """True when the built SPA bundle is present — in which case page routes
+    """True when the built SPA bundle is present. If it is, page routes
     should defer to the SPA for browser requests."""
     return (WEB_DIST / "index.html").exists()
 
@@ -149,12 +167,20 @@ def serve_spa_or_fallback():
     return send_from_directory(WEB_DIST, "index.html")
 
 
-def ok(payload: Any | None = None) -> Any:
-    """Standard success JSON."""
+def ok(payload: Any | None = None, *, status_code: int | None = None) -> Any:
+    """Standard success JSON.
+
+    Returns a bare response for the common 200 case. When `status_code`
+    is given (e.g. 201 Created), returns the `(response, code)` tuple
+    Flask expects for non-default statuses.
+    """
     body: dict[str, Any] = {"ok": True}
     if payload:
         body.update(payload)
-    return jsonify(body)
+    resp = jsonify(body)
+    if status_code is None or status_code == 200:
+        return resp
+    return resp, status_code
 
 
 def err(message: str, *, code: int = 400, **extra: Any) -> tuple[Any, int]:
@@ -412,7 +438,7 @@ def _register_routes(app: Flask) -> None:
         # Validation + dispatch is shared below.
         payload, status_code = _dispatch_generate()
         if not isinstance(payload, dict):
-            # Should never happen — dispatch always returns a dict or a Flask response.
+            # Should never happen. Dispatch always returns a dict or a Flask response.
             return payload  # type: ignore[return-value]
         if status_code != 200:
             return err(payload.get("error", "Failed"), code=status_code, **{
@@ -868,6 +894,33 @@ def _register_routes(app: Flask) -> None:
     @app.errorhandler(404)
     def not_found(_e):
         return render_template("404.html"), 404
+
+    # ---------- Phase A: pipeline routes (Jinja fallback) ----------
+    @app.route("/pipelines")
+    def pipelines_index():
+        from app import node_schema as ns_mod
+        from app import pipelines as pl_mod
+        return render_template(
+            "pipelines.html",
+            pipelines=pl_mod.list_pipelines(),
+            schemas=ns_mod.all_schemas(),
+        )
+
+    @app.route("/pipelines/<int:pid>")
+    def pipelines_detail(pid: int):
+        from app import node_schema as ns_mod
+        from app import pipelines as pl_mod
+        p = pl_mod.get_pipeline(pid)
+        if not p:
+            abort(404)
+        runs = pl_mod.list_runs(pid, limit=20)
+        return render_template(
+            "pipelines.html",
+            pipelines=pl_mod.list_pipelines(),
+            schemas=ns_mod.all_schemas(),
+            active=p,
+            runs=runs,
+        )
 
 
 def _dispatch_generate() -> tuple[dict, int]:
@@ -1336,6 +1389,406 @@ def _register_api_routes(app: Flask) -> None:
             })
         return ok({"outputs": items})
 
+    # ---------- Phase A: pipelines ----------
+
+    from app import node_schema as node_schema_mod
+    from app import pipelines as pipelines_mod
+
+    @app.route("/api/pipelines/node-schemas")
+    def api_pipeline_node_schemas():
+        return ok({"schemas": node_schema_mod.all_schemas(),
+                    "categories": node_schema_mod.node_categories()})
+
+    @app.route("/api/pipelines")
+    def api_list_pipelines():
+        return ok({"pipelines": pipelines_mod.list_pipelines()})
+
+    @app.route("/api/pipelines", methods=["POST"])
+    def api_create_pipeline():
+        body = request.get_json(silent=True) or {}
+        try:
+            p = pipelines_mod.create_pipeline(
+                body.get("name", ""),
+                description=body.get("description", ""),
+                nodes=body.get("nodes", []),
+                edges=body.get("edges", []),
+                max_workers=int(body.get("max_workers", 2) or 2),
+                enabled=bool(body.get("enabled", True)),
+            )
+        except pipelines_mod.PipelineError as exc:
+            return err(str(exc), code=400)
+        return ok({"pipeline": p}), 201
+
+    @app.route("/api/pipelines/<int:pid>")
+    def api_get_pipeline(pid: int):
+        p = pipelines_mod.get_pipeline(pid)
+        if not p:
+            return err("not found", code=404)
+        return ok({"pipeline": p})
+
+    @app.route("/api/pipelines/<int:pid>", methods=["PATCH"])
+    def api_update_pipeline(pid: int):
+        body = request.get_json(silent=True) or {}
+        try:
+            p = pipelines_mod.update_pipeline(pid, **body)
+        except pipelines_mod.PipelineError as exc:
+            return err(str(exc), code=400)
+        if not p:
+            return err("not found", code=404)
+        return ok({"pipeline": p})
+
+    @app.route("/api/pipelines/<int:pid>", methods=["DELETE"])
+    def api_delete_pipeline(pid: int):
+        ok_flag = pipelines_mod.delete_pipeline(pid)
+        if not ok_flag:
+            return err("not found", code=404)
+        return ok({"deleted": True})
+
+    @app.route("/api/pipelines/<int:pid>/run", methods=["POST"])
+    def api_run_pipeline(pid: int):
+        body = request.get_json(silent=True) or {}
+        try:
+            run = pipelines_mod.run_pipeline(
+                pid,
+                triggered_by=body.get("triggered_by", "api"),
+                max_workers=body.get("max_workers"),
+            )
+        except pipelines_mod.PipelineError as exc:
+            return err(str(exc), code=400)
+        return ok({"run": run}), 202
+
+    @app.route("/api/pipelines/<int:pid>/runs")
+    def api_list_pipeline_runs(pid: int):
+        return ok({"runs": pipelines_mod.list_runs(pid)})
+
+    @app.route("/api/pipelines/runs/<int:run_id>")
+    def api_get_pipeline_run(run_id: int):
+        run = pipelines_mod.get_run(run_id)
+        if not run:
+            return err("not found", code=404)
+        return ok({"run": run})
+
+    # ---------- Phase C: Studio ----------
+    from app import agents as agents_mod
+
+    # ---------- Phase D: extensions ----------
+    from app.extensions import loader as ext_loader
+
+    @app.route("/api/extensions")
+    def api_list_extensions():
+        ext_loader.discover()
+        return ok({"extensions": ext_loader.list_extensions()})
+
+    @app.route("/api/extensions/<ext_id>/enable", methods=["POST"])
+    def api_enable_extension(ext_id: str):
+        body = request.get_json(silent=True) or {}
+        secret = body.get("secret") or ""
+        if not ext_loader.enable(ext_id, secret=secret or None):
+            return err("could not enable extension (not found or bad signature)", code=400)
+        return ok({"id": ext_id, "enabled": True})
+
+    @app.route("/api/extensions/<ext_id>/disable", methods=["POST"])
+    def api_disable_extension(ext_id: str):
+        if not ext_loader.disable(ext_id):
+            return err("not enabled", code=400)
+        return ok({"id": ext_id, "enabled": False})
+
+    @app.route("/api/studio/run", methods=["POST"])
+    def api_studio_run():
+        body = request.get_json(silent=True) or {}
+        brief = (body.get("brief") or "").strip()
+        if not brief:
+            return err("brief is required", code=400)
+        try:
+            brand = brand_mod.get_active_brand() or {}
+        except Exception:  # noqa: BLE001
+            brand = {}
+        refs_list: list[dict] = []
+        try:
+            raw_refs = refs_mod.list_refs() or []
+            refs_list = [
+                {"id": r.get("filename"), "tags": r.get("tags", []), "path": r.get("path")}
+                for r in raw_refs
+            ]
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            result = agents_mod.run_studio(brief, brand=brand, references=refs_list)
+        except agents_mod.StudioError as exc:
+            return err(str(exc), code=400)
+        # Auto-persist the resulting pipeline so the user can run it later.
+        pipe_art = result["artifacts"].get("pipeline") or {}
+        saved_pid = None
+        if pipe_art.get("nodes"):
+            try:
+                p = pipelines_mod.create_pipeline(
+                    pipe_art.get("name", "studio"),
+                    description=pipe_art.get("description", ""),
+                    nodes=pipe_art["nodes"],
+                    edges=pipe_art["edges"],
+                    max_workers=int(pipe_art.get("max_workers", 2) or 2),
+                )
+                saved_pid = p["id"]
+            except pipelines_mod.PipelineError:
+                saved_pid = None
+        return ok({
+            "log": result["log"],
+            "artifacts": result["artifacts"],
+            "spent_usd": result["spent_usd"],
+            "pipeline_id": saved_pid,
+        })
+
+    # ---------- Phase F: Marketing surface ----------
+    from app.marketing import (
+        analytics as m_analytics,
+        campaigns as m_campaigns,
+        compliance as m_compliance,
+        contacts as m_contacts,
+        pages as m_pages,
+        scheduler as m_scheduler,
+        social as m_social,
+    )
+
+    # --- Contacts ---
+    @app.route("/api/contacts")
+    def api_list_contacts():
+        items = m_contacts.list_contacts(
+            tag=request.args.get("tag"),
+            query=request.args.get("q"),
+            subscribed_only=request.args.get("subscribed_only") == "1",
+        )
+        return ok({"contacts": [c.to_dict() for c in items]})
+
+    @app.route("/api/contacts", methods=["POST"])
+    def api_create_contact():
+        body = request.get_json(silent=True) or {}
+        try:
+            cid = m_contacts.upsert_contact(m_contacts.Contact(
+                id=None,
+                email=body.get("email", ""),
+                first_name=body.get("first_name", ""),
+                last_name=body.get("last_name", ""),
+                phone=body.get("phone", ""),
+                tags=body.get("tags") or [],
+                source=body.get("source", "api"),
+                consent_marketing=bool(body.get("consent_marketing")),
+            ))
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"id": cid}, status_code=201)
+
+    @app.route("/api/contacts/<int:cid>", methods=["DELETE"])
+    def api_delete_contact(cid: int):
+        m_contacts.delete_contact(cid)
+        return ok({"id": cid})
+
+    @app.route("/api/contacts/unsubscribe", methods=["POST"])
+    def api_unsubscribe_contact():
+        body = request.get_json(silent=True) or {}
+        email = (body.get("email") or "").strip().lower()
+        token = body.get("token") or ""
+        return ok(m_compliance.unsubscribe_via_token(email, token))
+
+    # --- Campaigns ---
+    @app.route("/api/campaigns")
+    def api_list_campaigns():
+        items = m_campaigns.list_campaigns(status=request.args.get("status"))
+        return ok({"campaigns": [c.to_dict() for c in items]})
+
+    @app.route("/api/campaigns", methods=["POST"])
+    def api_create_campaign():
+        body = request.get_json(silent=True) or {}
+        try:
+            cid = m_campaigns.create_campaign(m_campaigns.Campaign(
+                id=None,
+                name=body.get("name", ""),
+                subject=body.get("subject", ""),
+                channel=body.get("channel", "email"),
+                status="draft",
+                audience_query=body.get("audience_query", ""),
+                send_at=body.get("send_at"),
+                body_html=body.get("body_html", ""),
+                body_text=body.get("body_text", ""),
+            ))
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"id": cid}, status_code=201)
+
+    @app.route("/api/campaigns/<int:cid>", methods=["PATCH"])
+    def api_update_campaign(cid: int):
+        body = request.get_json(silent=True) or {}
+        try:
+            m_campaigns.update_campaign(cid, **body)
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"id": cid})
+
+    @app.route("/api/campaigns/<int:cid>", methods=["DELETE"])
+    def api_delete_campaign(cid: int):
+        m_campaigns.delete_campaign(cid)
+        return ok({"id": cid})
+
+    @app.route("/api/campaigns/<int:cid>/send", methods=["POST"])
+    def api_send_campaign(cid: int):
+        camp = m_campaigns.get_campaign(cid)
+        if not camp:
+            return err("not found", code=404)
+        if camp.status not in ("draft", "scheduled", "failed"):
+            return err(f"cannot send status={camp.status}", code=400)
+        m_campaigns.update_campaign(cid, status="sending")
+        if camp.send_at:
+            m_scheduler.schedule(
+                f"campaign:{cid}", "send_campaign", float(camp.send_at),
+                payload={"campaign_id": cid},
+            )
+            return ok({"scheduled": True})
+        # Immediate send. Invoke handler directly.
+        from app.marketing.scheduler import _HANDLERS
+        handler = _HANDLERS.get("send_campaign")
+        if handler:
+            handler({"campaign_id": cid})
+        return ok({"sent": True})
+
+    # --- Landing pages ---
+    @app.route("/api/pages")
+    def api_list_pages():
+        items = m_pages.list_pages(
+            published_only=request.args.get("published_only") == "1",
+        )
+        return ok({"pages": [p.to_dict() for p in items]})
+
+    @app.route("/api/pages", methods=["POST"])
+    def api_create_page():
+        body = request.get_json(silent=True) or {}
+        try:
+            pid = m_pages.create_page(m_pages.LandingPage(
+                id=None,
+                slug=body.get("slug", ""),
+                title=body.get("title", ""),
+                body_html=body.get("body_html", ""),
+                form_schema=body.get("form_schema") or {},
+                consent_text=body.get("consent_text", ""),
+                published=bool(body.get("published")),
+            ))
+        except Exception as exc:  # noqa: BLE001
+            return err(str(exc), code=400)
+        return ok({"id": pid}, status_code=201)
+
+    @app.route("/api/pages/<int:pid>", methods=["PATCH"])
+    def api_update_page(pid: int):
+        body = request.get_json(silent=True) or {}
+        m_pages.update_page(pid, **body)
+        return ok({"id": pid})
+
+    @app.route("/api/pages/<int:pid>", methods=["DELETE"])
+    def api_delete_page(pid: int):
+        m_pages.delete_page(pid)
+        return ok({"id": pid})
+
+    # --- Social ---
+    @app.route("/api/social")
+    def api_list_social():
+        items = m_social.list_posts(
+            platform=request.args.get("platform"),
+            status=request.args.get("status"),
+        )
+        return ok({"posts": [p.to_dict() for p in items]})
+
+    @app.route("/api/social", methods=["POST"])
+    def api_create_social():
+        body = request.get_json(silent=True) or {}
+        try:
+            pid = m_social.create_post(m_social.SocialPost(
+                id=None,
+                platform=body.get("platform", "x"),
+                account=body.get("account", ""),
+                body=body.get("body", ""),
+                media_url=body.get("media_url", ""),
+                scheduled_at=body.get("scheduled_at"),
+                status="draft",
+            ))
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"id": pid}, status_code=201)
+
+    @app.route("/api/social/<int:pid>", methods=["PATCH"])
+    def api_update_social(pid: int):
+        body = request.get_json(silent=True) or {}
+        try:
+            m_social.update_post(pid, **body)
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"id": pid})
+
+    @app.route("/api/social/<int:pid>", methods=["DELETE"])
+    def api_delete_social(pid: int):
+        m_social.delete_post(pid)
+        return ok({"id": pid})
+
+    # --- Analytics ---
+    @app.route("/api/analytics/aggregate")
+    def api_analytics_aggregate():
+        try:
+            days = int(request.args.get("days", "7"))
+        except ValueError:
+            days = 7
+        since = time.time() - days * 86400
+        agg = m_analytics.aggregate(since, kind=request.args.get("kind"))
+        return ok({"aggregate": agg, "since": since, "days": days})
+
+    @app.route("/api/analytics/events", methods=["POST"])
+    def api_record_event():
+        body = request.get_json(silent=True) or {}
+        try:
+            eid = m_analytics.record(
+                kind=body.get("kind", ""),
+                ref=body.get("ref", ""),
+                value_num=float(body.get("value_num", 0)),
+                metadata=body.get("metadata") or {},
+            )
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"id": eid}, status_code=201)
+
+    # --- Scheduler ---
+    @app.route("/api/scheduler/jobs")
+    def api_list_jobs():
+        return ok({"jobs": m_scheduler.list_jobs(
+            status=request.args.get("status"),
+        )})
+
+    @app.route("/api/scheduler/jobs", methods=["POST"])
+    def api_schedule_job():
+        body = request.get_json(silent=True) or {}
+        try:
+            jid = m_scheduler.schedule(
+                name=body.get("name", "job"),
+                kind=body.get("kind", ""),
+                run_at=float(body.get("run_at", time.time())),
+                payload=body.get("payload") or {},
+            )
+        except (ValueError, TypeError) as exc:
+            return err(str(exc), code=400)
+        return ok({"id": jid}, status_code=201)
+
+    @app.route("/api/scheduler/jobs/<int:jid>", methods=["DELETE"])
+    def api_cancel_job(jid: int):
+        m_scheduler.cancel(jid)
+        return ok({"id": jid})
+
+    # --- Compliance ---
+    @app.route("/api/compliance/export", methods=["POST"])
+    def api_compliance_export():
+        body = request.get_json(silent=True) or {}
+        email = (body.get("email") or "").strip().lower()
+        return ok(m_compliance.export_user_data(email))
+
+    @app.route("/api/compliance/erase", methods=["POST"])
+    def api_compliance_erase():
+        body = request.get_json(silent=True) or {}
+        email = (body.get("email") or "").strip().lower()
+        return ok(m_compliance.erase_user_data(email))
+
 
 # ---------- SPA static fallback ----------
 
@@ -1346,7 +1799,7 @@ def _register_spa_fallback(app: Flask) -> None:
     assets_dir = WEB_DIST / "assets"
 
     if not index_html.exists():
-        return  # SPA not built yet — fall through to Jinja.
+        return  # SPA not built yet. Fall through to Jinja.
 
     @app.route("/assets/<path:filename>")
     def spa_assets(filename: str):

@@ -1,8 +1,8 @@
-# Folder B — Site Screenshots (seeded, then locked)
+# Folder B. Site Screenshots (seeded, then locked)
 
 **Status:** Seeded 2026-08-31 from `/Volumes/Content SSD/Gacha Luka/public/`. **Do not modify files in this folder after this date.**
 
-The pipeline references these images but does not edit them. If the live site updates its cabinet artwork, you (the operator) update the snapshots here manually — by copying fresh PNGs from `../Gacha Luka/public/` over the existing files. The pipeline picks up the new images on the next generation cycle.
+The pipeline references these images but does not edit them. If the live site updates its cabinet artwork, you (the operator) update the snapshots here manually by copying fresh PNGs from `../Gacha Luka/public/` over the existing files. The pipeline picks up the new images on the next generation cycle.
 
 ## What's here
 

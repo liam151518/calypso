@@ -15,4 +15,4 @@ description: For a new vertical slice, research existing patterns and emit a des
 2. Identify 1-2 viable designs; pick one with rationale.
 3. List the contracts: functions to create, files to touch, tests to write.
 4. List explicit non-goals.
-5. Keep the plan ≤200 lines. No code in the plan — only design.
+5. Keep the plan ≤200 lines. No code in the plan. Only design.

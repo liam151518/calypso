@@ -34,7 +34,7 @@ class Check:
 
 
 def load_env_file(path: Path) -> None:
-    """Lightweight .env loader — does NOT override existing env vars."""
+    """Lightweight .env loader. Does NOT override existing env vars."""
     if not path.exists():
         return
     for line in path.read_text().splitlines():
@@ -157,7 +157,7 @@ def check_cloudflare_r2(
             ok=False,
             detail="not set",
         )
-    # R2 uses S3-compatible API. Skip the network call — just confirm the keys are non-empty.
+    # R2 uses S3-compatible API. Skip the network call. Just confirm the keys are non-empty.
     return Check(
         name="cloudflare_r2",
         env_var=f"{account_var}, {access_var}",

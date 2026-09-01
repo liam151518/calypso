@@ -2,7 +2,7 @@
 
 Run: `python -m pytest tests/test_comfyui_client.py -v`
 
-These tests don't require a running ComfyUI — they use a fake HTTP server
+These tests don't require a running ComfyUI. They use a fake HTTP server
 (unix socket based) to simulate ComfyUI's responses.
 """
 
@@ -178,7 +178,7 @@ class TestGenerate:
         def patched_do_post(self):  # noqa: N802
             length = int(self.headers.get("Content-Length", "0"))
             _ = json.loads(self.rfile.read(length).decode() or "{}")
-            # Assign the prompt_id and outputs inline (don't call original — it would re-read the body)
+            # Assign the prompt_id and outputs inline (don't call original. It would re-read the body.)
             prompt_id = f"prompt-{type(self).next_prompt_id}"
             type(self).next_prompt_id += 1
             outputs_for_this_prompt = {

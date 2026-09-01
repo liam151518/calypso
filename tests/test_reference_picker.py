@@ -1,7 +1,7 @@
 """Tests for scripts/reference_picker.py.
 
 Per the Adam rules, the high-level agent (Adam) writes these. Builders make
-them green. Do not edit test files during slice execution — if a test is
+them green. Do not edit test files during slice execution. If a test is
 wrong, file it as a finding and let Adam fix the test or rewrite the script.
 
 Run: `python -m pytest tests/test_reference_picker.py -v`
@@ -177,7 +177,7 @@ class TestWeightedPick:
     def test_unknown_tier_uses_default_weight(self, tmp_path: Path):
         path = _write_ref(tmp_path, "weird", tier="X")
         ref = Reference.from_json(path)
-        # Tier "X" not in DEFAULT_WEIGHTS — falls back to 1.0 via .get()
+        # Tier "X" not in DEFAULT_WEIGHTS. Falls back to 1.0 via .get().
         result = weighted_pick([ref], rng=random.Random(7))
         assert result is ref
 

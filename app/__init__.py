@@ -1,4 +1,4 @@
-"""Calypso Flask web UI — local-first video generation dashboard.
+"""Calypso Flask web UI. Local-first video generation dashboard.
 
 The app is intentionally tiny: a single Flask process, Jinja templates, and
 HTMX for lightweight interactivity. No build step, no npm, no Docker.

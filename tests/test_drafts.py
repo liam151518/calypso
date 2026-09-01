@@ -1,4 +1,4 @@
-"""Tests for app/drafts.py — SQLite-backed prompt-draft library."""
+"""Tests for app/drafts.py. SQLite-backed prompt-draft library."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ class TestListDrafts:
         a = drafts.save_draft("A", "alpha")
         b = drafts.save_draft("B", "beta")
         result = drafts.list_drafts()
-        # Both saved with the same time — either order is acceptable,
+        # Both saved with the same time. Either order is acceptable,
         # but in practice newer rows return first.
         assert {d["id"] for d in result} == {a["id"], b["id"]}
 

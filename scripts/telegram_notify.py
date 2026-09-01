@@ -1,4 +1,4 @@
-"""Telegram notification client — the approval gate.
+"""Telegram notification client. The approval gate.
 
 Sends a preview image + caption + 3 inline buttons (Approve / Regenerate / Skip)
 to a configured Telegram chat. n8n polls the callback query to know which

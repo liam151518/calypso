@@ -1,6 +1,6 @@
 """Integration test for the image pipeline.
 
-This is a smoke test — it verifies the workflow JSON files load, the scripts
+This is a smoke test. It verifies the workflow JSON files load, the scripts
 compose correctly, and the post-process step produces a valid output. It does
 NOT require ComfyUI or Telegram to be running.
 
@@ -152,7 +152,7 @@ class TestEndToEndSmoke:
 
 
 class TestAntiSlopChecks:
-    """Per the plan: 'the only hard gate is verify.sh' — these checks encode the anti-slop rules."""
+    """Per the plan: 'the only hard gate is verify.sh'. These checks encode the anti-slop rules."""
 
     def test_no_banned_words_in_positive_prompt(self):
         reference = {"theme": "pull_reaction", "style_tags": ["cinematic"], "composition": "", "audio_trend": ""}

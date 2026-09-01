@@ -1,4 +1,4 @@
-"""Tests for app/models.py — the fal.ai model registry + cost estimator."""
+"""Tests for app/models.py. The fal.ai model registry + cost estimator."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from app import models
 
 
 def test_top_models_have_at_least_ten_entries():
-    assert len(models.TOP_MODELS) >= 10, "Spec said 'top 10' — registry should not shrink"
+    assert len(models.TOP_MODELS) >= 10, "Spec said 'top 10'. Registry should not shrink."
 
 
 def test_top_models_have_unique_ids():

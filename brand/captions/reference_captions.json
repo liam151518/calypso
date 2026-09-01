@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "Curated reference captions. The pipeline prompt_builder.py reads this and picks one to anchor the caption style. You (the operator) add 20-50 examples tagged by theme during Phase 1.1 — Adam handles the intake interview.",
+  "$comment": "Curated reference captions. The pipeline prompt_builder.py reads this and picks one to anchor the caption style. You (the operator) add 20-50 examples tagged by theme during Phase 1.1. Adam handles the intake interview.",
   "captions": [],
   "themes_supported": [
     "pull_reaction",
@@ -35,17 +35,17 @@
       "theme": "restock_alert",
       "platform_origin": "x",
       "engagement_metric": { "likes": 0, "shares": 0, "comments": 0, "vs_account_avg_multiplier": 0 },
-      "why_it_worked": "TEMPLATE — replace with real curated captions. This one shows the pattern: specific cabinet color, specific location, scarcity cue, urgency without gambling framing.",
+      "why_it_worked": "TEMPLATE. Replace with real curated captions. This one shows the pattern: specific cabinet color, specific location, scarcity cue, urgency without gambling framing.",
       "curated_by": "scaffold",
       "curated_at": 0
     },
     {
       "id": "example-002",
-      "caption": "Spring drop tier list is up. S-tier is honestly fewer figures than I expected — the Damascus set carries harder than people think. link in bio.",
+      "caption": "Spring drop tier list is up. S-tier is honestly fewer figures than I expected. The Damascus set carries harder than people think. Link in bio.",
       "theme": "tier_list",
       "platform_origin": "instagram",
       "engagement_metric": { "likes": 0, "shares": 0, "comments": 0, "vs_account_avg_multiplier": 0 },
-      "why_it_worked": "TEMPLATE — opinionated, casual, links to site subtly. Pulls readers in with a hot take.",
+      "why_it_worked": "TEMPLATE. Opinionated, casual, links to site subtly. Pulls readers in with a hot take.",
       "curated_by": "scaffold",
       "curated_at": 0
     }

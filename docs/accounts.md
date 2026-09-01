@@ -1,12 +1,12 @@
-# Accounts — Required for the Pipeline
+# Accounts. Required for the Pipeline
 
-You need to create these accounts. The agent cannot do this for you — they require your credentials, sometimes payment info, and sometimes platform approval.
+You need to create these accounts. The agent cannot do this for you. They require your credentials, sometimes payment info, and sometimes platform approval.
 
 Work the list in order. Items 1-4 are instant. Items 5-7 need 1-7 days of platform review. Start them ASAP.
 
 ---
 
-## Tier 1 — Instant (set up first, needed for end-to-end tests)
+## Tier 1. Instant (set up first, needed for end-to-end tests)
 
 ### 1. MiniMax platform
 - **URL:** https://platform.minimax.io (global) / https://platform.minimaxi.com (CN)
@@ -24,7 +24,7 @@ Work the list in order. Items 1-4 are instant. Items 5-7 need 1-7 days of platfo
 
 ### 3. Telegram bot
 - **URL:** https://t.me/BotFather
-- **What for:** Approval gate — every generated post sends here for Approve/Regenerate/Skip
+- **What for:** Approval gate. Every generated post sends here for Approve/Regenerate/Skip.
 - **Setup:**
   1. Message @BotFather, send `/newbot`
   2. Name it `GatchaKingdom Approvals` (or whatever)
@@ -52,7 +52,7 @@ Most clips will use H3's native audio and skip ElevenLabs entirely. Only enable 
 
 ---
 
-## Tier 2 — Platform approval (start today, takes days)
+## Tier 2. Platform approval (start today, takes days)
 
 ### 6. X (Twitter) developer account
 - **URL:** https://developer.twitter.com

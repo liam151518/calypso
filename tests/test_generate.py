@@ -1,4 +1,4 @@
-"""Tests for scripts/generate.py — the unified CLI entry point.
+"""Tests for scripts/generate.py. The unified CLI entry point.
 
 Run: `python -m pytest tests/test_generate.py -v`
 """

@@ -1,4 +1,4 @@
-# ADR 0003 — MiniMax H3 License Posture
+# ADR 0003. MiniMax H3 License Posture
 
 **Status:** Template — to be filled in by Adam's `council` skill during Phase 4
 **Date:** 2026-08-31 (placeholder)

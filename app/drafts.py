@@ -1,4 +1,4 @@
-"""app/drafts.py — prompt-draft library.
+"""app/drafts.py. Prompt-draft library.
 
 A draft is a named piece of prompt copy that the user wants to keep
 for re-use. Stored in SQLite, not the filesystem, because the data is
@@ -94,7 +94,7 @@ def save_draft(
             (name, body, category, int(is_favorite), now, now),
         )
         return get_draft(cur.lastrowid) or {}
-    # Update path — keep created_at, bump updated_at.
+    # Update path. Keep created_at, bump updated_at.
     conn.execute(
         """
         UPDATE drafts
