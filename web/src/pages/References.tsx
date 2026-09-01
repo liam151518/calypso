@@ -24,9 +24,11 @@ export function ReferencesPage() {
 
   const allTags = refs.data?.tags ?? [];
   const items = useMemo(() => {
-    const list = refs.data?.refs ?? [];
+    const list = (refs.data?.refs ?? []).filter(
+      (r): r is NonNullable<typeof r> => Boolean(r && r.id),
+    );
     if (!tagFilter) return list;
-    return list.filter((r) => r.tags.includes(tagFilter));
+    return list.filter((r) => (r.tags ?? []).includes(tagFilter));
   }, [refs.data?.refs, tagFilter]);
 
   function handleUpload() {
@@ -140,7 +142,7 @@ export function ReferencesPage() {
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {items.map((r) => (
-                <ReferenceCell key={r.id} ref={r} />
+                <ReferenceCell key={r.id} refItem={r} />
               ))}
             </div>
           )}

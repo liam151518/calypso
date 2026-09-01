@@ -2,12 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type {
   Brand,
+  CostEstimate,
   Draft,
+  ImageJob,
   Job,
+  ModelSpec,
   OutputItem,
   RefItem,
   RefTag,
 } from "./types";
+import type { ImageOutputItem } from "./api";
 
 export const queryKeys = {
   health: ["health"] as const,
@@ -215,5 +219,66 @@ export function useOutputs() {
   return useQuery<OutputItem[]>({
     queryKey: queryKeys.outputs,
     queryFn: () => api.listOutputs().then((r) => r.outputs),
+  });
+}
+
+export type ModelsData = {
+  models: ModelSpec[];
+  defaults: { video: string; image: string };
+};
+
+export function useModels() {
+  return useQuery<ModelsData>({
+    queryKey: ["models"],
+    queryFn: () => api.listModels(),
+    staleTime: 60_000,
+  });
+}
+
+export function useEstimateCost() {
+  return useMutation<CostEstimate, Error, Parameters<typeof api.estimateCost>[0]>({
+    mutationFn: (data) => api.estimateCost(data).then((r) => r.estimate),
+  });
+}
+
+export function useImageJobs() {
+  return useQuery<ImageJob[]>({
+    queryKey: ["image-jobs"],
+    queryFn: () => api.listImageJobs().then((r) => r.jobs),
+    refetchInterval: 5_000,
+  });
+}
+
+export function useImageJob(id: string | null | undefined) {
+  return useQuery<ImageJob>({
+    queryKey: id ? ["image-jobs", id] : ["image-jobs", "none"],
+    queryFn: () => api.getImageJob(id!).then((r) => r.job),
+    enabled: !!id,
+    refetchInterval: (q) => {
+      const status = q.state.data?.status;
+      if (!status) return 2_000;
+      if (status === "succeeded" || status === "failed") return false;
+      return 2_000;
+    },
+  });
+}
+
+export function useGenerateImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof api.generateImage>[0]) =>
+      api.generateImage(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["image-jobs"] });
+      qc.invalidateQueries({ queryKey: queryKeys.outputs });
+      qc.invalidateQueries({ queryKey: ["image-outputs"] });
+    },
+  });
+}
+
+export function useImageOutputs() {
+  return useQuery<ImageOutputItem[]>({
+    queryKey: ["image-outputs"],
+    queryFn: () => api.listImageOutputs().then((r) => r.outputs),
   });
 }

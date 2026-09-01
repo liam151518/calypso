@@ -164,4 +164,59 @@ export const api = {
   // Outputs
   listOutputs: () =>
     call<Ok<{ outputs: import("./types").OutputItem[] }>>("/api/outputs"),
+
+  // Models + cost estimates
+  listModels: () =>
+    call<
+      Ok<{
+        models: import("./types").ModelSpec[];
+        defaults: { video: string; image: string };
+      }>
+    >("/api/models"),
+  estimateCost: (data: {
+    model: string;
+    duration?: number;
+    resolution?: string;
+    aspect_ratio?: string;
+    num_images?: number;
+  }) =>
+    call<Ok<{ estimate: import("./types").CostEstimate }>>("/api/cost-estimate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Image jobs
+  generateImage: (data: {
+    prompt: string;
+    model: string;
+    aspect_ratio: string;
+    num_images: number;
+    ref_id?: string | null;
+    draft_id?: number | null;
+    brand_id?: number | null;
+  }) =>
+    call<Ok<{ job: import("./types").ImageJob }>>("/api/image-generate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  listImageJobs: () =>
+    call<Ok<{ jobs: import("./types").ImageJob[] }>>("/api/image-jobs"),
+  getImageJob: (id: string) =>
+    call<Ok<{ job: import("./types").ImageJob }>>(`/api/image-jobs/${id}`),
+
+  listImageOutputs: () =>
+    call<Ok<{ outputs: ImageOutputItem[] }>>("/api/image-outputs"),
+};
+
+export type ImageOutputItem = {
+  id: string;
+  job_id: string;
+  rel_url: string;
+  size_mb: number;
+  created: number;
+  prompt: string;
+  model: string;
+  aspect_ratio: string;
+  num_images: number;
+  cost_usd: number | null;
 };

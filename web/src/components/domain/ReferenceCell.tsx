@@ -20,13 +20,24 @@ import { useDeleteRef, useSetRefTags } from "@/lib/query";
 import { formatBytes, cn } from "@/lib/utils";
 import type { RefItem } from "@/lib/types";
 
-export function ReferenceCell({ ref }: { ref: RefItem }) {
+export function ReferenceCell({ refItem }: { refItem: RefItem }) {
+  const ref = refItem;
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(ref.tags.join(", "));
+  const [draft, setDraft] = useState((ref?.tags ?? []).join(", "));
   const setTags = useSetRefTags();
   const remove = useDeleteRef();
 
-  const isVideo = /\.(mp4|mov|webm)$/i.test(ref.ext);
+  if (!ref) {
+    return (
+      <Card className="overflow-hidden">
+        <CardContent className="p-3 text-xs text-muted-foreground">
+          Reference unavailable.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const isVideo = /\.(mp4|mov|webm)$/i.test(ref.ext ?? "");
 
   return (
     <Card data-testid={`ref-card-${ref.id}`} className="overflow-hidden">
@@ -60,7 +71,7 @@ export function ReferenceCell({ ref }: { ref: RefItem }) {
         </div>
 
         <div className="flex flex-wrap gap-1">
-          {ref.tags.length ? (
+          {ref.tags?.length ? (
             ref.tags.map((t) => <TagPill key={t} tag={t} />)
           ) : (
             <Badge variant="muted">untagged</Badge>

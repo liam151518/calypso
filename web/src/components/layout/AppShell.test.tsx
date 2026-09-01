@@ -15,6 +15,7 @@ describe("AppShell", () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId("nav-generate")).toBeInTheDocument();
+    expect(screen.getByTestId("nav-image")).toBeInTheDocument();
     expect(screen.getByTestId("nav-outputs")).toBeInTheDocument();
     expect(screen.getByTestId("nav-references")).toBeInTheDocument();
     expect(screen.getByTestId("nav-brand")).toBeInTheDocument();

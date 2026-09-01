@@ -82,6 +82,7 @@ from app import drafts
 from app import jobs
 from app import refs as refs_mod
 from app import brand as brand_mod
+import app.settings as settings
 from app.settings import (
     KNOWN_KEYS,
     delete_key,
@@ -427,6 +428,46 @@ def _register_routes(app: Flask) -> None:
             abort(500)
         return _render_job_block(job)
 
+    @app.route("/image/submit", methods=["POST"])
+    def image_submit():
+        from app import image_jobs
+
+        if wants_json():
+            return err("Use POST /api/image-generate instead", code=400)
+        env = settings._read_env_file(settings.ENV_PATH)
+        if not env.get("FAL_API_KEY", "").strip():
+            return err("FAL_API_KEY not set", code=400, redirect="/settings")
+
+        prompt = (request.form.get("prompt") or "").strip()
+        if not prompt:
+            return err("prompt is required", code=400)
+        model = request.form.get("model") or "flux-pro/v1.1"
+        aspect_ratio = request.form.get("aspect_ratio") or "1:1"
+        try:
+            num_images = int(request.form.get("num_images") or 1)
+        except (TypeError, ValueError):
+            num_images = 1
+        ref_id = request.form.get("ref_id") or None
+        ref_path: str | None = None
+        if ref_id:
+            ref_path = str(REFERENCES_UPLOAD_DIR / ref_id)
+
+        active_brand = brand_mod.get_active_brand()
+        effective_prompt = prompt
+        if active_brand and active_brand.get("name"):
+            effective_prompt = f"{active_brand['name']} brand. {prompt}"
+
+        job = image_jobs.create_image_job(
+            effective_prompt,
+            model=model,
+            aspect_ratio=aspect_ratio,
+            num_images=num_images,
+            reference=ref_path,
+            ref_ids=[ref_id] if ref_id else [],
+        )
+        image_jobs.start_image_job(job)
+        return render_template("job_block.html", job=job.to_dict())
+
     @app.route("/generate/<job_id>/status")
     def generate_status(job_id: str):
         job = jobs.get_job(job_id)
@@ -506,6 +547,37 @@ def _register_routes(app: Flask) -> None:
         if not video_dir.exists() or not (video_dir / "video.mp4").exists():
             abort(404)
         return send_from_directory(video_dir, "video.mp4", mimetype="video/mp4")
+
+    @app.route("/image")
+    def image_page():
+        spa = serve_spa_or_fallback()
+        if spa is not None:
+            return spa
+        if wants_json():
+            from app import models as models_mod
+
+            env = settings._read_env_file(settings.ENV_PATH)
+            fal_key = env.get("FAL_API_KEY", "").strip()
+            return ok({
+                "keys": list_keys(),
+                "refs": refs_mod.list_refs(),
+                "tags": refs_mod.all_tags(),
+                "brands": brand_mod.list_brands(),
+                "active_brand": brand_mod.get_active_brand(),
+                "models": models_mod.list_models(api_key=fal_key or None),
+                "defaults": {
+                    "image": models_mod.default_image_model_id(),
+                },
+                "recent_jobs": [],
+            })
+        return render_template(
+            "image.html",
+            keys=list_keys(),
+            references=_references_for_library(),
+            all_tags=_all_tags_for_filter(),
+            active_brand=brand_mod.get_active_brand(),
+            brands=brand_mod.list_brands(),
+        )
 
     @app.route("/outputs/<job_id>/prompt")
     def outputs_prompt(job_id: str):
@@ -899,6 +971,35 @@ def _register_api_routes(app: Flask) -> None:
     def api_health():
         return jsonify({"status": "ok", "service": "calypso", "version": "0.1.0"})
 
+    @app.route("/api/models")
+    def api_models():
+        from app import models as models_mod
+
+        env = settings._read_env_file(settings.ENV_PATH)
+        fal_key = env.get("FAL_API_KEY", "").strip()
+        return ok({
+            "models": models_mod.list_models(api_key=fal_key or None),
+            "defaults": {
+                "video": models_mod.default_video_model_id(),
+                "image": models_mod.default_image_model_id(),
+            },
+        })
+
+    @app.route("/api/cost-estimate", methods=["POST"])
+    def api_cost_estimate():
+        from app import models as models_mod
+
+        body = request.get_json(silent=True) or {}
+        model_id = str(body.get("model") or "auto")
+        est = models_mod.estimate_cost(
+            model_id,
+            duration=body.get("duration"),
+            resolution=body.get("resolution"),
+            aspect_ratio=body.get("aspect_ratio"),
+            num_images=int(body.get("num_images") or 1),
+        )
+        return ok({"estimate": est})
+
     @app.route("/api/generate", methods=["POST"])
     def api_generate():
         payload, status_code = _dispatch_generate()
@@ -1132,6 +1233,108 @@ def _register_api_routes(app: Flask) -> None:
                 "refs": link["refs"] if link else [],
             })
         return ok({"outputs": decorated})
+
+    @app.route("/api/image-generate", methods=["POST"])
+    def api_image_generate():
+        from app import image_jobs
+
+        body = request.get_json(silent=True) or request.form.to_dict()
+        prompt = (body.get("prompt") or "").strip()
+        if not prompt:
+            return err("prompt is required")
+        env = settings._read_env_file(settings.ENV_PATH)
+        if not env.get("FAL_API_KEY", "").strip():
+            return err("FAL_API_KEY not set", code=400, redirect="/settings")
+
+        # If a brand is active, prepend it like video jobs do.
+        active_brand = brand_mod.get_active_brand()
+        effective_prompt = prompt
+        if active_brand and active_brand.get("name"):
+            effective_prompt = f"{active_brand['name']} brand. {prompt}"
+
+        model = body.get("model") or "flux-pro/v1.1"
+        aspect_ratio = body.get("aspect_ratio") or "1:1"
+        try:
+            num_images = int(body.get("num_images") or 1)
+        except (TypeError, ValueError):
+            num_images = 1
+
+        ref_id = body.get("ref_id")
+        ref_path: str | None = None
+        ref_ids: list[str] = []
+        if ref_id:
+            ref_path = str(REFERENCES_UPLOAD_DIR / ref_id)
+            ref_ids = [str(ref_id)]
+            if not Path(ref_path).exists():
+                return err(f"reference {ref_id} not found", code=404)
+
+        job = image_jobs.create_image_job(
+            effective_prompt,
+            model=model,
+            aspect_ratio=aspect_ratio,
+            num_images=num_images,
+            reference=ref_path,
+            ref_ids=ref_ids,
+        )
+        image_jobs.start_image_job(job)
+        return ok({"job": job.to_dict()})
+
+    @app.route("/api/image-jobs")
+    def api_image_jobs():
+        from app import image_jobs
+
+        return ok({"jobs": [j.to_dict() for j in image_jobs.list_image_jobs(limit=100)]})
+
+    @app.route("/api/image-jobs/<id>")
+    def api_image_jobs_get(id: str):
+        from app import image_jobs
+
+        job = image_jobs.get_image_job(id)
+        if job is None:
+            abort(404)
+        return ok({"job": job.to_dict()})
+
+    @app.route("/outputs/file/<job_id>/<path:filename>")
+    def api_outputs_file(job_id: str, filename: str):
+        """Serve a generated image or video file by job_id.
+
+        Used by the SPA's <img> / <video src> tags. Path traversal is guarded
+        by resolving the path under OUTPUTS_DIR and refusing anything that
+        climbs out.
+        """
+        target = (jobs.OUTPUTS_DIR / job_id / filename).resolve()
+        try:
+            target.relative_to(jobs.OUTPUTS_DIR.resolve())
+        except ValueError:
+            abort(404)
+        if not target.exists() or not target.is_file():
+            abort(404)
+        return send_from_directory(target.parent, target.name)
+
+    @app.route("/api/image-outputs")
+    def api_image_outputs():
+        from app import image_jobs
+
+        items = []
+        for job in image_jobs.list_image_jobs(limit=100):
+            if job.status != "succeeded" or not job.output_paths:
+                continue
+            first = Path(job.output_paths[0])
+            size_mb = round(first.stat().st_size / (1024 * 1024), 2) if first.exists() else 0
+            rel = f"/outputs/file/{first.parent.name}/{first.name}"
+            items.append({
+                "id": job.job_id,
+                "job_id": job.job_id,
+                "rel_url": rel,
+                "size_mb": size_mb,
+                "created": job.created_at,
+                "prompt": job.prompt,
+                "model": job.model,
+                "aspect_ratio": job.aspect_ratio,
+                "num_images": job.num_images,
+                "cost_usd": job.cost_usd,
+            })
+        return ok({"outputs": items})
 
 
 # ---------- SPA static fallback ----------

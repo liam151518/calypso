@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Clapperboard,
   Cog,
+  ImagePlus,
   Library,
   Palette,
   Search,
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/generate", label: "Generate", icon: Sparkles, hint: "G" },
+  { to: "/image", label: "Image", icon: ImagePlus, hint: "I" },
   { to: "/outputs", label: "Outputs", icon: Clapperboard, hint: "O" },
   { to: "/references", label: "References", icon: Library, hint: "R" },
   { to: "/brand", label: "Brand", icon: Palette, hint: "B" },

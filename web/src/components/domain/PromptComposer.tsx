@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+
+import { ModelPicker } from "./ModelPicker";
+import { useEstimateCost, useModels } from "@/lib/query";
+import type { CostEstimate, ModelSpec } from "@/lib/types";
 
 interface PromptComposerProps {
   initialPrompt?: string;
@@ -30,13 +34,6 @@ interface PromptComposerProps {
   isSubmitting?: boolean;
 }
 
-const MODELS = [
-  { value: "auto", label: "Auto" },
-  { value: "minimax/h3", label: "MiniMax H3" },
-  { value: "fal/minimax-video", label: "fal · minimax" },
-  { value: "fal/kling-video", label: "fal · kling" },
-];
-
 const DURATIONS = [4, 6, 8, 10, 12];
 const RESOLUTIONS = ["480p", "768p", "1080p"];
 
@@ -48,10 +45,36 @@ export function PromptComposer({
   onSubmit,
   isSubmitting,
 }: PromptComposerProps) {
+  const models = useModels();
+  const estimate = useEstimateCost();
+
+  const modelList: ModelSpec[] = models.data?.models ?? [];
+  const defaultVideoId = models.data?.defaults.video ?? "minimax/h3";
+
   const [prompt, setPrompt] = useState(initialPrompt);
-  const [model, setModel] = useState("auto");
+  const [model, setModel] = useState(defaultVideoId);
   const [duration, setDuration] = useState(8);
   const [resolution, setResolution] = useState("768p");
+  const [cost, setCost] = useState<CostEstimate | null>(null);
+
+  useEffect(() => {
+    if (models.data?.defaults.video && model === "minimax/h3") {
+      setModel(models.data.defaults.video);
+    }
+  }, [models.data?.defaults.video, model]);
+
+  // Live estimate: client-side via ModelPicker + server-side debounced via /api/cost-estimate.
+  useEffect(() => {
+    if (!model) return;
+    const handle = window.setTimeout(() => {
+      estimate.mutate({
+        model,
+        duration,
+        resolution,
+      });
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [model, duration, resolution]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSubmit(e: import("react").FormEvent) {
     e.preventDefault();
@@ -85,22 +108,18 @@ export function PromptComposer({
           data-testid="prompt-input"
         />
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="model">Model</Label>
-          <Select value={model} onValueChange={setModel}>
-            <SelectTrigger id="model">
-              <SelectValue placeholder="Auto" />
-            </SelectTrigger>
-            <SelectContent>
-              {MODELS.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr_1fr]">
+        <ModelPicker
+          models={modelList}
+          category="video"
+          value={model}
+          onChange={setModel}
+          duration={duration}
+          resolution={resolution}
+          estimate={estimate.data ?? null}
+          onEstimateChange={setCost}
+          id="model"
+        />
         <div className="flex flex-col gap-2">
           <Label htmlFor="duration">Duration</Label>
           <Select
@@ -143,6 +162,11 @@ export function PromptComposer({
               ? "1 reference."
               : `Batch of ${refIds.length} references.`}
           {brandId ? " Brand will be prepended." : ""}
+          {cost ? (
+            <>
+              {" "}· Est. <span className="font-mono">${cost.usd.toFixed(3)}</span>
+            </>
+          ) : null}
         </p>
         <Button
           type="submit"

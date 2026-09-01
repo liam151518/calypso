@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { buildQueryMock } from "@/test/mocks";
+
+vi.mock("@/lib/query", () => buildQueryMock());
+
 import { PromptComposer } from "./PromptComposer";
 
 describe("PromptComposer", () => {
@@ -18,7 +22,8 @@ describe("PromptComposer", () => {
     fireEvent.click(screen.getByTestId("submit-generate"));
     expect(onSubmit).toHaveBeenCalledWith({
       prompt: "Hero draws blade",
-      model: "auto",
+      // Default model id comes from the mocked /api/models defaults.
+      model: "minimax/h3",
       duration: 8,
       resolution: "768p",
       ref_ids: ["ref_01.png", "ref_02.png"],

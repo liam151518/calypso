@@ -86,3 +86,50 @@ export type OutputItem = {
   draft_name: string | null;
   refs: { id: string; name: string; rel_url: string }[];
 };
+
+// A fal.ai model surfaced by /api/models.
+export type ModelSpec = {
+  id: string;
+  name: string;
+  category: "video" | "image";
+  vendor: string;
+  description: string;
+  durations: number[];
+  resolutions: string[];
+  aspect_ratios: string[];
+  per_second_usd: Record<string, number>;
+  per_image_usd: number;
+  badge: string;
+  is_default: boolean;
+};
+
+// An image generation job (separate from video Job so output_paths is plural).
+export type ImageJob = {
+  job_id: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  prompt: string;
+  model: string;
+  aspect_ratio: string;
+  num_images: number;
+  ref_ids: string[];
+  brand_id: number | null;
+  draft_id: number | null;
+  output_paths: string[];
+  output_rel: string | null;
+  cost_usd: number | null;
+  elapsed_seconds: number | null;
+  error: string | null;
+  created_at: number;
+  updated_at: number;
+};
+
+export type CostEstimate = {
+  usd: number;
+  model_id: string;
+  category: "video" | "image";
+  duration?: number;
+  resolution?: string;
+  aspect_ratio?: string;
+  num_images?: number;
+  note?: string;
+};

@@ -2,9 +2,12 @@
 import { vi } from "vitest";
 import type {
   Brand,
+  CostEstimate,
   Draft,
+  ImageJob,
   Job,
   KeyStatus,
+  ModelSpec,
   OutputItem,
   RefItem,
   RefTag,
@@ -116,6 +119,88 @@ export const MOCK_KEYS: KeyStatus[] = [
   },
 ];
 
+export const MOCK_MODELS: ModelSpec[] = [
+  {
+    id: "minimax/h3",
+    name: "MiniMax H3",
+    category: "video",
+    vendor: "MiniMax",
+    description: "Reference-driven cinematic video.",
+    durations: [4, 6, 8, 10, 12],
+    resolutions: ["480p", "768p", "1080p"],
+    aspect_ratios: [],
+    per_second_usd: { "480p": 0.025, "768p": 0.045, "1080p": 0.075 },
+    per_image_usd: 0,
+    badge: "default",
+    is_default: true,
+  },
+  {
+    id: "kling-video/v2.6/pro",
+    name: "Kling 2.6 Pro",
+    category: "video",
+    vendor: "Kuaishou",
+    description: "Strong motion.",
+    durations: [5, 10],
+    resolutions: ["480p", "768p", "1080p"],
+    aspect_ratios: [],
+    per_second_usd: { "480p": 0.05, "768p": 0.07, "1080p": 0.10 },
+    per_image_usd: 0,
+    badge: "",
+    is_default: false,
+  },
+  {
+    id: "flux-pro/v1.1",
+    name: "Flux Pro 1.1",
+    category: "image",
+    vendor: "Black Forest Labs",
+    description: "Photorealistic product imagery.",
+    durations: [],
+    resolutions: [],
+    aspect_ratios: ["1:1", "16:9", "9:16", "4:3", "3:4"],
+    per_second_usd: {},
+    per_image_usd: 0.05,
+    badge: "default",
+    is_default: true,
+  },
+];
+
+export const MOCK_ESTIMATE_VIDEO: CostEstimate = {
+  usd: 0.36,
+  model_id: "minimax/h3",
+  category: "video",
+  duration: 8,
+  resolution: "768p",
+};
+
+export const MOCK_ESTIMATE_IMAGE: CostEstimate = {
+  usd: 0.05,
+  model_id: "flux-pro/v1.1",
+  category: "image",
+  aspect_ratio: "1:1",
+  num_images: 1,
+};
+
+export const MOCK_IMAGE_JOBS: ImageJob[] = [
+  {
+    job_id: "img-1",
+    status: "succeeded",
+    prompt: "A samurai helmet",
+    model: "flux-pro/v1.1",
+    aspect_ratio: "1:1",
+    num_images: 1,
+    ref_ids: [],
+    brand_id: null,
+    draft_id: null,
+    output_paths: ["/outputs/img-1/image-1.png"],
+    output_rel: "/outputs/file/img-1/image-1.png",
+    cost_usd: 0.05,
+    elapsed_seconds: 2.4,
+    error: null,
+    created_at: Date.now() / 1000 - 60,
+    updated_at: Date.now() / 1000 - 50,
+  },
+];
+
 /**
  * Build a query-hook mock factory you can spread into a `vi.mock("@/lib/query", ...)`.
  * Each hook returns a stable shape so React components render predictably.
@@ -153,5 +238,14 @@ export function buildQueryMock() {
     useDeleteRef: () => ({ mutate: vi.fn(), isPending: false }),
     useSetKey: () => ({ mutate: vi.fn(), isPending: false }),
     useDeleteKey: () => ({ mutate: vi.fn(), isPending: false }),
+    useModels: () => ({
+      data: { models: MOCK_MODELS, defaults: { video: "minimax/h3", image: "flux-pro/v1.1" } },
+      isLoading: false,
+    }),
+    useEstimateCost: () => ({ mutate: vi.fn(), data: null, isPending: false }),
+    useImageJobs: () => ({ data: MOCK_IMAGE_JOBS, isLoading: false }),
+    useImageJob: () => ({ data: MOCK_IMAGE_JOBS[0], isLoading: false }),
+    useGenerateImage: () => ({ mutate: vi.fn(), isPending: false }),
+    useImageOutputs: () => ({ data: [], isLoading: false }),
   };
 }

@@ -106,3 +106,56 @@ def test_navigate_to_generate_and_see_composer(server, browser):
         assert page.locator('[data-testid="submit-generate"]').count() == 1
     finally:
         page.close()
+
+
+def test_navigate_to_image_and_see_composer(server, browser):
+    base_url, _ = server
+    page = browser.new_page()
+    try:
+        page.goto(base_url + "/image", wait_until="networkidle")
+        page.wait_for_selector('[data-testid="page-outlet"]', timeout=15_000)
+        page.wait_for_selector('[data-testid="nav-image"]', timeout=15_000)
+        page.wait_for_selector('[data-testid="image-composer"]', timeout=15_000)
+        assert page.locator('[data-testid="image-prompt-input"]').count() == 1
+        assert page.locator('[data-testid="submit-image"]').count() == 1
+        # The video ModelPicker should still be present on /generate, so the
+        # image picker trigger should be present on /image.
+        assert page.locator('[data-testid="model-picker-trigger-image"]').count() == 1
+    finally:
+        page.close()
+
+
+def test_api_models_endpoint_returns_models(server):
+    """Hit /api/models and assert at least 10 models with both categories."""
+    import urllib.request
+    import json
+
+    base_url, _ = server
+    req = urllib.request.Request(
+        f"{base_url}/api/models",
+        headers={"Accept": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        data = json.loads(resp.read())
+    assert len(data["models"]) >= 10
+    cats = {m["category"] for m in data["models"]}
+    assert "video" in cats
+    assert "image" in cats
+
+
+def test_api_cost_estimate_returns_estimate(server):
+    """Hit /api/cost-estimate and assert a USD amount is returned."""
+    import urllib.request
+    import json
+
+    base_url, _ = server
+    req = urllib.request.Request(
+        f"{base_url}/api/cost-estimate",
+        data=json.dumps({"model": "minimax/h3", "duration": 8, "resolution": "768p"}).encode(),
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        data = json.loads(resp.read())
+    assert data["estimate"]["usd"] > 0
+    assert data["estimate"]["category"] == "video"

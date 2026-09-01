@@ -30,8 +30,17 @@ from scripts.h3_client import H3Error
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 
-VALID_MODELS = ("auto", "h3-cloud", "h3-max", "kling")
+VALID_MODELS = ("auto", "h3-cloud", "h3-max", "kling")  # legacy aliases
 VALID_RESOLUTIONS = ("480p", "768p", "1080p")
+
+# Canonical alias for the SPA model picker — uses fal.ai endpoint ids.
+# "auto" stays as a legacy fallback so existing form submissions keep working.
+LEGACY_TO_MODEL = {
+    "auto": "minimax/h3",
+    "h3-cloud": "minimax/h3",
+    "h3-max": "minimax/h3-max",
+    "kling": "kling-video/v2.6/pro",
+}
 
 
 @dataclass
@@ -215,8 +224,15 @@ def list_jobs(limit: int = 50) -> list[Job]:
 
 def run_job(job: Job) -> None:
     """Execute the generation in the current thread. Called via threading.Thread."""
+    from app.models import estimate_cost  # local import: avoid circular at boot
+
     with job._lock:
         job.status = "running"
+        # Pre-record a cost estimate from the registry so the UI shows it
+        # immediately, even before the API call completes.
+        est = estimate_cost(job.model, duration=job.duration, resolution=job.resolution)
+        if est.get("usd") and job.cost_usd is None:
+            job.cost_usd = est["usd"]
         job.touch()
 
     try:
