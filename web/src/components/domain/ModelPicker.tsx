@@ -90,9 +90,9 @@ export function ModelPicker({
   }, [localEstimate, onEstimateChange]);
 
   return (
-    <div className="flex flex-col gap-2" data-testid={`model-picker-${category}`}>
+    <div className="flex min-w-0 flex-col gap-2" data-testid={`model-picker-${category}`}>
       <Label htmlFor={id}>Model</Label>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -104,11 +104,11 @@ export function ModelPicker({
               data-testid={`model-picker-trigger-${category}`}
             >
               {current ? (
-                <span className="flex items-center gap-2 truncate">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="truncate font-medium">{current.name}</span>
+                <span className="flex min-w-0 flex-1 items-center gap-2 truncate">
+                  <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 truncate font-medium">{current.name}</span>
                   {current.badge ? (
-                    <Badge variant="muted" className="ml-1">
+                    <Badge variant="muted" className="ml-1 shrink-0">
                       {current.badge}
                     </Badge>
                   ) : null}
@@ -169,8 +169,8 @@ export function ModelPicker({
           </PopoverContent>
         </Popover>
       </div>
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="truncate">
+      <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate">
           {current?.description ?? "Pick a model to see cost."}
         </span>
         <Badge

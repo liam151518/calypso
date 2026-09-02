@@ -87,18 +87,20 @@ export function ImageComposer({
           data-testid="image-prompt-input"
         />
       </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr_1fr]">
-        <ModelPicker
-          models={modelList}
-          category="image"
-          value={model}
-          onChange={setModel}
-          aspect_ratio={aspectRatio}
-          num_images={numImages}
-          estimate={estimate.data ?? null}
-          onEstimateChange={setCost}
-          id="img-model"
-        />
+      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[2fr_1fr_1fr]">
+        <div className="min-w-0">
+          <ModelPicker
+            models={modelList}
+            category="image"
+            value={model}
+            onChange={setModel}
+            aspect_ratio={aspectRatio}
+            num_images={numImages}
+            estimate={estimate.data ?? null}
+            onEstimateChange={setCost}
+            id="img-model"
+          />
+        </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="img-aspect">Aspect</Label>
           <select

@@ -108,18 +108,20 @@ export function PromptComposer({
           data-testid="prompt-input"
         />
       </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr_1fr]">
-        <ModelPicker
-          models={modelList}
-          category="video"
-          value={model}
-          onChange={setModel}
-          duration={duration}
-          resolution={resolution}
-          estimate={estimate.data ?? null}
-          onEstimateChange={setCost}
-          id="model"
-        />
+      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-[2fr_1fr_1fr]">
+        <div className="min-w-0">
+          <ModelPicker
+            models={modelList}
+            category="video"
+            value={model}
+            onChange={setModel}
+            duration={duration}
+            resolution={resolution}
+            estimate={estimate.data ?? null}
+            onEstimateChange={setCost}
+            id="model"
+          />
+        </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="duration">Duration</Label>
           <Select
