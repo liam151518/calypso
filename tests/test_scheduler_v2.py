@@ -101,3 +101,81 @@ def test_apscheduler_starts_when_available(fresh_db):
     # thread is what really matters and ``start()`` should not throw.
     assert sched._THREAD is not None
     sched.stop()
+
+
+def test_publish_output_uses_registered_instagram_publisher(fresh_db,
+                                                            monkeypatch,
+                                                            tmp_path):
+    """When the Instagram publisher is registered, ``publish_output`` picks
+    it (instead of dry_run) for ``platform="instagram"``."""
+    import sys
+    import types
+
+    # Seed an output row + image file on disk so the publisher can claim it.
+    image_path = tmp_path / "hero.png"
+    image_path.write_bytes(b"\x89PNG\r\n\x1a\n")
+    from app import db as app_db, outputs as outputs_mod
+    now = time.time()
+    with app_db.connect() as c:
+        c.execute(
+            "INSERT INTO brands (name, created_at, updated_at) VALUES (?, ?, ?)",
+            ("Test", now, now),
+        )
+        bid = c.execute("SELECT id FROM brands WHERE name='Test'").fetchone()[0]
+        c.execute(
+            "INSERT INTO outputs (brand_id, type, file_path, status, created_at) "
+            "VALUES (?, 'image', ?, 'rendered', ?)",
+            (bid, str(image_path), now),
+        )
+        out_id = int(c.execute(
+            "SELECT id FROM outputs ORDER BY id DESC LIMIT 1"
+        ).fetchone()[0])
+
+    # Build a fake instagrapi module and re-register the publisher.
+    monkeypatch.setenv("INSTAGRAM_USERNAME", "test_user")
+    monkeypatch.setenv("INSTAGRAM_PASSWORD", "test_pass")
+    fake = types.ModuleType("instagrapi")
+
+    class FakeClient:
+        def login(self, *, username, password):
+            self.settings = {"fake": True}
+
+        def get_settings(self):
+            return getattr(self, "settings", {"fake": True})
+
+        def load_settings(self, s):
+            self.settings = s
+
+        def get_timeline_feed(self):
+            return {}
+
+        def photo_upload(self, *, path, caption):
+            return types.SimpleNamespace(id="IG999", code="XYZ")
+
+    fake.Client = FakeClient
+    monkeypatch.setitem(sys.modules, "instagrapi", fake)
+    sys.modules.pop("app.publishers.instagram", None)
+
+    from app.publishers import instagram as ig_mod
+    ig_mod.register()
+
+    from app.marketing import scheduler as sched
+    sched.register_default_handlers()
+    job_id = sched.schedule(
+        "ig-dispatch",
+        "publish_output",
+        time.time() + 600,
+        payload={"output_id": out_id, "platform": "instagram"},
+    )
+    res = sched.run_now(job_id)
+    # run_now returns the job row; the handler result is folded into
+    # status/extra_status. Verify the publisher actually ran by reading
+    # the output row's external_id back.
+    out_after = outputs_mod.get_output(out_id)
+    assert out_after["status"] == "published"
+    assert out_after["external_id"] == "IG999"
+
+    # Cleanup: remove the registered Instagram publisher so subsequent tests
+    # don't see it.
+    from app import publisher as core_pub
+    core_pub._REGISTRY.pop("instagram", None)

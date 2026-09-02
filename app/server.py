@@ -62,10 +62,13 @@ Run with: bash run.sh
 from __future__ import annotations
 
 import json
+import logging
 import time
 import uuid
 from pathlib import Path
 from typing import Any
+
+log = logging.getLogger(__name__)
 
 from flask import (
     Flask,
@@ -128,6 +131,23 @@ def create_app() -> Flask:
         ext_loader.restore_state()
     except Exception:  # noqa: BLE001
         pass
+
+    # Phase H+: opt-in publishers (Instagram, etc.). Each module's
+    # `register()` is a no-op if its dependencies aren't installed.
+    try:
+        from app.publishers import instagram as ig_publisher
+        ig_publisher.register()
+    except Exception:  # noqa: BLE001
+        log.exception("publisher registration failed (continuing without)")
+
+    # Phase I: Skills runtime — seed built-in skill rows + sync filesystem.
+    try:
+        from app import skills_store, skills as skills_runtime
+        skills_store.ensure_table()
+        skills_store.ensure_builtin_seeded()
+        skills_runtime.sync_filesystem_to_db()
+    except Exception:  # noqa: BLE001
+        log.exception("skill seeding failed (continuing without)")
 
     # Phase F.7: boot the in-process scheduler (single instance per process).
     try:
@@ -1195,6 +1215,112 @@ def _register_api_routes(app: Flask) -> None:
         if raw.lower() in {"changeme", "todo", "your-key-here", "xxx", "xxxx"}:
             return err(f"{env_var} still has the placeholder value.", code=400)
         return ok({"env_var": env_var, "ok": True})
+
+    @app.route("/api/llm/providers")
+    def api_llm_providers():
+        """List the LLM providers the backend knows about, with their
+        default model + whether their API key is configured. Used by the
+        Skills page and the Settings UI."""
+        from . import llm as llm_mod
+        providers = llm_mod.list_providers()
+        active = llm_mod.get_default_provider_name()
+        return ok({"providers": providers, "active": active})
+
+    # ---- Skills CRUD (Phase I) ----------------------------------------
+
+    @app.route("/api/skills")
+    def api_skills_list():
+        from . import skills as skills_mod, skills_store
+        skills_store.ensure_table()
+        skills_store.ensure_builtin_seeded()
+        skills_mod.sync_filesystem_to_db()
+        skills = [s.as_dict() | {"content_md": s.content_md} for s in skills_mod.list_skills()]
+        return ok({"skills": skills})
+
+    @app.route("/api/skills", methods=["POST"])
+    def api_skills_create():
+        from . import skills as skills_mod
+        body = request.get_json(silent=True) or {}
+        slug = str(body.get("slug") or "").strip().lower()
+        if not slug or not all(c.isalnum() or c in "-_" for c in slug):
+            return err("slug must be alphanumeric (with - or _)", code=400)
+        try:
+            skill = skills_mod.save_user_skill(
+                slug=slug,
+                name=str(body.get("name") or "").strip() or slug.replace("_", " ").title(),
+                enabled=bool(body.get("enabled", True)),
+                content_md=str(body.get("content_md") or ""),
+                post_process_re=body.get("post_process_re"),
+                description=str(body.get("description") or ""),
+                tags=body.get("tags") or [],
+            )
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"skill": skill.as_dict() | {"content_md": skill.content_md}})
+
+    @app.route("/api/skills/<slug>", methods=["PUT"])
+    def api_skills_update(slug: str):
+        from . import skills as skills_mod
+        body = request.get_json(silent=True) or {}
+        try:
+            skill = skills_mod.save_user_skill(
+                slug=slug,
+                name=str(body.get("name") or "").strip() or slug.replace("_", " ").title(),
+                enabled=bool(body.get("enabled", True)),
+                content_md=str(body.get("content_md") or ""),
+                post_process_re=body.get("post_process_re"),
+                description=str(body.get("description") or ""),
+                tags=body.get("tags") or [],
+            )
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        return ok({"skill": skill.as_dict() | {"content_md": skill.content_md}})
+
+    @app.route("/api/skills/<slug>", methods=["DELETE"])
+    def api_skills_delete(slug: str):
+        from . import skills as skills_mod
+        ok_deleted = skills_mod.delete_user_skill(slug)
+        if not ok_deleted:
+            return err("skill not found or is built-in (toggle instead)", code=404)
+        return ok({"deleted": slug})
+
+    @app.route("/api/skills/<slug>/toggle", methods=["POST"])
+    def api_skills_toggle(slug: str):
+        from . import skills_store
+        body = request.get_json(silent=True) or {}
+        enabled = bool(body.get("enabled", True))
+        ok_changed = skills_store.set_enabled(slug, enabled)
+        if not ok_changed:
+            return err("skill not found", code=404)
+        return ok({"slug": slug, "enabled": enabled})
+
+    @app.route("/api/skills/<slug>/test", methods=["POST"])
+    def api_skills_test(slug: str):
+        """Preview the rendered prompt diff + apply post-process to a sample."""
+        from . import skills as skills_mod
+        body = request.get_json(silent=True) or {}
+        sample = str(body.get("sample") or "")
+        skill = skills_mod.get_skill(slug)
+        if not skill:
+            return err("skill not found", code=404)
+        if not sample:
+            return err("sample required", code=400)
+        injected = (
+            f"<skill name={skill.name!r} slug={skill.slug!r}>\n"
+            f"{skill.content_md}\n</skill>\n\n{sample}"
+        )
+        transformed = sample
+        if skill.post_process_re:
+            try:
+                import re as _re
+                transformed = _re.sub(skill.post_process_re, "", transformed)
+            except Exception:  # noqa: BLE001
+                transformed = sample
+        return ok({
+            "skill": skill.as_dict() | {"content_md": skill.content_md},
+            "injected_system": injected,
+            "post_processed": transformed,
+        })
 
     @app.route("/api/refs")
     def api_refs():
@@ -2775,6 +2901,157 @@ def _register_api_routes(app: Flask) -> None:
     def api_publishers_list():
         from app import publisher as publisher_mod
         return ok({"publishers": publisher_mod.list_publishers()})
+
+    # ---- Phase I: Refinement Studio — versions ----
+
+    @app.route("/api/outputs/<int:output_id>", methods=["GET"])
+    def api_output_detail(output_id: int):
+        """Return a single output's full row (including parsed layers/filter)."""
+        from app import outputs as outputs_mod
+        out = outputs_mod.get_output(output_id)
+        if not out:
+            return err("output not found", code=404)
+        return ok({"output": out})
+
+    @app.route("/api/outputs/<int:output_id>/versions", methods=["GET"])
+    def api_output_versions_list(output_id: int):
+        from app import refinement as refine
+        from app import outputs as outputs_mod
+        if not outputs_mod.get_output(output_id):
+            return err("output not found", code=404)
+        return ok({"versions": refine.list_versions(output_id)})
+
+    @app.route("/api/outputs/<int:output_id>/versions", methods=["POST"])
+    def api_output_versions_create(output_id: int):
+        """Create a new version of an output. Body:
+            layers_json:       [layer, ...]
+            filter_settings:   {filter_name, intensity, ...}
+            file_path:         path to the rendered file on disk
+            thumbnail_path:    optional
+            notes:             optional
+            cost_usd:          optional
+        """
+        from app import refinement as refine
+        from app import outputs as outputs_mod
+        if not outputs_mod.get_output(output_id):
+            return err("output not found", code=404)
+        body = request.get_json(silent=True) or {}
+        file_path = str(body.get("file_path") or "").strip()
+        if not file_path:
+            return err("file_path required", code=400)
+        try:
+            ver = refine.create_version(
+                output_id,
+                layers_json=body.get("layers_json"),
+                filter_settings=body.get("filter_settings"),
+                file_path=file_path,
+                thumbnail_path=body.get("thumbnail_path"),
+                notes=body.get("notes"),
+                cost_usd=float(body.get("cost_usd") or 0),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return err(f"failed to create version: {exc}", code=500)
+        return ok({"version": ver})
+
+    @app.route("/api/outputs/<int:output_id>/versions/<int:vid>/promote",
+               methods=["POST"])
+    def api_output_versions_promote(output_id: int, vid: int):
+        from app import refinement as refine
+        ver = refine.get_version(vid)
+        if not ver or ver["output_id"] != output_id:
+            return err("version not found", code=404)
+        ok_promoted = refine.promote_version(vid)
+        return ok({"promoted": ok_promoted, "version": ver})
+
+    @app.route("/api/outputs/<int:output_id>/versions/<int:vid>",
+               methods=["DELETE"])
+    def api_output_versions_delete(output_id: int, vid: int):
+        from app import refinement as refine
+        ver = refine.get_version(vid)
+        if not ver or ver["output_id"] != output_id:
+            return err("version not found", code=404)
+        deleted = refine.delete_version(vid)
+        return ok({"deleted": deleted})
+
+    @app.route("/api/outputs/<int:output_id>/layers/<int:layer_index>/regenerate",
+               methods=["POST"])
+    def api_output_regenerate_layer(output_id: int, layer_index: int):
+        """Re-render one layer and persist the result as a new version.
+
+        Body:
+            prompt        — new prompt for ai_background / ai_image
+            seed          — new seed for ai_background / ai_image
+            model         — new model id for ai_background / ai_image
+            text_content  — new text content for text layers
+            notes         — optional annotation on the resulting version
+        """
+        from app import refinement as refine
+        body = request.get_json(silent=True) or {}
+        # Validate the output exists before we even try to mutate anything.
+        from app import outputs as outputs_mod
+        if not outputs_mod.get_output(output_id):
+            return err("output not found", code=404)
+        try:
+            result = refine.regenerate_layer(
+                output_id,
+                layer_index,
+                prompt=body.get("prompt"),
+                seed=body.get("seed"),
+                model=body.get("model"),
+                text_content=body.get("text_content"),
+                notes=body.get("notes"),
+            )
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("regenerate_layer failed")
+            return err(f"regenerate failed: {exc}", code=500)
+        return ok({
+            "version": result["version"],
+            "layer": result["layer"],
+            "render": {
+                "output_id": result["render"].output_id,
+                "file_path": result["render"].file_path,
+                "cost_usd": result["render"].cost_usd,
+                "cached_background": result["render"].cached_background,
+            },
+        })
+
+    @app.route("/api/outputs/<int:output_id>/upscale", methods=["POST"])
+    def api_output_upscale(output_id: int):
+        """Upscale the output's current file. Body:
+            scale          — 2 or 4 (default 4)
+            model          — "realesrgan" or "fal" (default "realesrgan")
+            face_enhance   — bool
+            notes          — optional annotation on the new version
+        """
+        from app import refinement as refine
+        from app import outputs as outputs_mod
+        if not outputs_mod.get_output(output_id):
+            return err("output not found", code=404)
+        body = request.get_json(silent=True) or {}
+        try:
+            scale = int(body.get("scale") or 4)
+        except (TypeError, ValueError):
+            return err("scale must be 2 or 4", code=400)
+        if scale not in (2, 4):
+            return err("scale must be 2 or 4", code=400)
+        try:
+            result = refine.upscale_output(
+                output_id,
+                scale=scale,
+                model=str(body.get("model") or "realesrgan"),
+                face_enhance=bool(body.get("face_enhance")),
+                notes=body.get("notes"),
+            )
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        except RuntimeError as exc:
+            return err(f"upscale failed: {exc}", code=500)
+        return ok({
+            "version": result["version"],
+            "upscale": result["upscale"].to_dict(),
+        })
 
     @app.route("/api/publishers/dispatch", methods=["POST"])
     def api_publishers_dispatch():

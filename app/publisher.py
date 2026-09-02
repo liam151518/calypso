@@ -155,13 +155,22 @@ def list_publishers() -> list[str]:
 
 def dispatch(output: dict[str, Any], platform: str, *,
              preferred: str | None = None) -> dict[str, Any]:
-    """Dispatch an output using the preferred publisher or the first available."""
+    """Dispatch an output using the preferred publisher or the first available.
+
+    Walks the registry in insertion order, but always evaluates the
+    platform-specific publishers (everything except `dry_run`) first so a
+    well-configured Instagram/Telegram/etc. credentials beat dry_run even
+    if dry_run was registered earlier.
+    """
     if preferred:
         pub = get(preferred)
         if pub.can_publish(output, platform):
             return pub.publish(output, platform)
-    for pub in _REGISTRY.values():
+    # Try real publishers first, dry_run last.
+    real = [(name, pub) for name, pub in _REGISTRY.items()
+            if pub.name != "dry_run"]
+    for _name, pub in real:
         if pub.can_publish(output, platform):
             return pub.publish(output, platform)
-    # No publisher claims it; fall back to dry_run so the job still completes.
+    # Fall back to dry_run so the job still completes.
     return DryRunPublisher().publish(output, platform)

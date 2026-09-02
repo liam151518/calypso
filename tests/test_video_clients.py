@@ -248,7 +248,9 @@ class TestSpendState:
         assert state.spend_usd == 0.0
         assert state.requests == 0
 
-    def test_saves_and_reloads(self, tmp_path: Path):
+    def test_saves_and_reloads(self, tmp_path: Path, monkeypatch):
+        import scripts.generation_router as gr
+        monkeypatch.setattr(gr, "_current_month", lambda: "2026-08")
         state = SpendState(month="2026-08", spend_usd=12.34, requests=5, cap_usd=30.0)
         path = tmp_path / "spend.json"
         state.save(path=path)
@@ -265,6 +267,23 @@ class TestSpendState:
         current = datetime.now(tz=timezone.utc).strftime("%Y-%m")
         assert state.month == current
         assert state.spend_usd == 0.0
+
+    def test_rollover_keeps_cap_and_resets_spend(self, tmp_path: Path, monkeypatch):
+        """Regression: when month rolls over, spend resets to 0 but cap carries over."""
+        import scripts.generation_router as gr
+        monkeypatch.setattr(gr, "_current_month", lambda: "2026-09")
+        path = tmp_path / "spend.json"
+        path.write_text(json.dumps({
+            "month": "2026-08",
+            "spend_usd": 100.0,
+            "requests": 50,
+            "cap_usd": 75.0,
+        }))
+        state = SpendState.load(path=path)
+        assert state.month == "2026-09"
+        assert state.spend_usd == 0.0
+        assert state.requests == 0
+        assert state.cap_usd == 75.0  # cap preserved across rollover
 
 
 class TestRouting:

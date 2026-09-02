@@ -42,7 +42,19 @@ Copy `.env.example` to `.env` and fill in:
 | `OMNI_API_KEY` | optional | Opt-in Omni motion graphics backend |
 | `TELEGRAM_BOT_TOKEN` | optional | Telegram approval gate |
 | `TELEGRAM_CHAT_ID` | optional | Telegram chat for approvals |
+| `INSTAGRAM_USERNAME` | optional | Instagrapi publisher (requires `pip install instagrapi`) |
+| `INSTAGRAM_PASSWORD` | optional | Instagrapi publisher login |
+| `INSTAGRAM_SESSION_FILE` | optional | Path to a pickled instagrapi session (default `~/.calypso/instagram_session.pickle`) |
 | `CALYPSO_DB` | optional | Override SQLite path (default `.calypso/calypso.db`) |
+
+To enable direct Instagram publishing, install the optional dependency:
+
+```bash
+pip install instagrapi
+```
+
+Without it, the Instagram publisher registers but `can_publish()` returns
+false and the scheduler falls back to the Telegram handoff or dry_run.
 
 Variables left empty simply disable that integration; the rest of
 Calypso still works.
