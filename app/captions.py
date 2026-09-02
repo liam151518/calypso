@@ -199,61 +199,87 @@ def _heuristic(req: CaptionRequest, *, count: int = 3) -> list[CaptionVariant]:
 
 
 def _llm_variants(req: CaptionRequest, *, count: int = 3) -> list[CaptionVariant] | None:
-    if not os.environ.get("FAL_API_KEY"):
-        return None
-    try:
-        # Late import keeps the heuristic path dependency-free.
-        import urllib.request
+    """Generate caption variants via the unified :mod:`app.llm` backend.
 
-        prompt = (
-            "Generate {n} short, distinct social captions for {platform}. "
-            "Product: {product}. Tone: {tone}. Brand: {brand}. "
-            "Each caption must include 1-3 hashtags."
-        ).format(
-            n=count,
-            platform=req.platform,
-                product=_product_label(req.product),
-                tone=(req.brand or {}).get("voice") or "casual",
-                brand=(req.brand or {}).get("name") or "Calypso",
-            )
-        body = json.dumps({"prompt": prompt, "max_tokens": 256}).encode()
-        req_http = urllib.request.Request(
-            "https://fal.run/llm",
-            data=body,
-            headers={
-                "Authorization": f"Key {os.environ['FAL_API_KEY']}",
-                "Content-Type": "application/json",
-            },
-        )
-        with urllib.request.urlopen(req_http, timeout=20) as resp:  # noqa: S310
-            payload = json.loads(resp.read().decode())
-        # The exact shape of the response is provider-dependent; we
-        # accept any list of strings under `captions` or `text`.
-        candidates = payload.get("captions") or payload.get("text") or []
-        if isinstance(candidates, str):
-            candidates = [c.strip() for c in candidates.split("\n\n") if c.strip()]
-        if not candidates:
-            return None
-        variants: list[CaptionVariant] = []
-        for c in candidates[:count]:
-            if isinstance(c, dict):
-                content = c.get("content") or c.get("text") or ""
-                hashtags = c.get("hashtags") or []
-            else:
-                content = str(c)
-                hashtags = []
-            variants.append(
-                CaptionVariant(
-                    content=content,
-                    hashtags=hashtags or _hashtags_for(req.brand, req.platform),
-                    first_comment="",
-                    alt_text=_product_label(req.product),
-                )
-            )
-        return variants
+    Respects :data:`app.llm.LLMProvider` selection (openai/anthropic/MiniMax).
+    Falls back to the heuristic path on any provider failure so the rest
+    of the system keeps working.
+    """
+    try:
+        from .llm import get_backend, LLMError
+    except Exception as exc:  # noqa: BLE001
+        log.debug("LLM backend unavailable: %s", exc)
+        return None
+
+    system_prompt = (
+        "You are Calypso, an expert short-form social copywriter. "
+        "Write punchy captions that respect the brand voice. "
+        "Return valid JSON: {\"captions\": [{\"content\": str, \"hashtags\": [str]}]}"
+    )
+    user_prompt = (
+        f"Generate {count} short, distinct social captions for {req.platform}.\n"
+        f"Product: {_product_label(req.product)}\n"
+        f"Tone: {(req.brand or {}).get('voice') or 'casual'}\n"
+        f"Brand: {(req.brand or {}).get('name') or 'Calypso'}\n"
+        "Each caption must include 1-3 hashtags."
+    )
+
+    try:
+        backend = get_backend()
+        text = backend.complete(system=system_prompt, user=user_prompt)
+    except LLMError as exc:
+        log.warning("LLM caption path skipped: %s", exc)
+        return None
     except Exception as exc:  # noqa: BLE001
         log.warning("LLM caption path failed, falling back to heuristic: %s", exc)
         return None
+
+    candidates = _parse_caption_response(text)
+    if not candidates:
+        return None
+
+    variants: list[CaptionVariant] = []
+    for c in candidates[:count]:
+        if isinstance(c, dict):
+            content = c.get("content") or c.get("text") or ""
+            hashtags = c.get("hashtags") or []
+        else:
+            content = str(c)
+            hashtags = []
+        variants.append(
+            CaptionVariant(
+                content=content,
+                hashtags=hashtags or _hashtags_for(req.brand, req.platform),
+                first_comment="",
+                alt_text=_product_label(req.product),
+            )
+        )
+    return variants
+
+
+def _parse_caption_response(text: str) -> list[Any]:
+    """Parse the LLM JSON response. Accepts a few shapes:
+    - ``{"captions": [...]}``
+    - bare JSON array ``[{"content": ...}, ...]``
+    - newline-separated plain text (last-resort heuristic)
+    """
+    if not text:
+        return []
+    stripped = text.strip()
+    # Try JSON first.
+    try:
+        data = json.loads(stripped)
+    except json.JSONDecodeError:
+        data = None
+    if isinstance(data, dict):
+        candidates = data.get("captions") or data.get("text") or []
+    elif isinstance(data, list):
+        candidates = data
+    else:
+        candidates = [line.strip() for line in stripped.split("\n\n") if line.strip()]
+    if isinstance(candidates, str):
+        candidates = [c.strip() for c in candidates.split("\n\n") if c.strip()]
+    return candidates or []
 
 
 # ---- Cache ----------------------------------------------------------------
