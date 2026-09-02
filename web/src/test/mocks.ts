@@ -116,8 +116,13 @@ export const MOCK_KEYS: KeyStatus[] = [
     env_var: "FAL_API_KEY",
     service: "fal.ai",
     placeholder: "fal-xxx",
+    group: "Generation",
+    required: true,
+    docs_url: "https://fal.ai/dashboard/keys",
+    description: "Primary cloud provider.",
     is_set: true,
     masked: "•••••abcd",
+    is_custom: false,
   },
 ];
 
@@ -309,7 +314,14 @@ export function buildQueryMock() {
     useJobs: () => ({ data: MOCK_JOBS, isLoading: false }),
     useJob: () => ({ data: MOCK_JOBS[0], isLoading: false }),
     useOutputs: () => ({ data: MOCK_OUTPUTS, isLoading: false }),
-    useKeys: () => ({ data: MOCK_KEYS, isLoading: false }),
+    useKeys: () => ({
+      data: {
+        keys: MOCK_KEYS,
+        custom: [],
+        groups: [{ name: "Generation", keys: MOCK_KEYS.map((k) => k.env_var) }],
+      },
+      isLoading: false,
+    }),
     useGenerate: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
     useClearActiveBrand: () => ({ mutate: vi.fn(), isPending: false }),
     useActivateBrand: () => ({ mutate: vi.fn(), isPending: false }),

@@ -4,8 +4,19 @@ export type KeyStatus = {
   env_var: string;
   service: string;
   placeholder: string;
+  group: string;
+  required: boolean;
+  docs_url: string | null;
+  description: string;
   is_set: boolean;
   masked: string | null;
+  is_custom?: boolean;
+};
+
+export type KeysResponse = {
+  keys: KeyStatus[];
+  custom: KeyStatus[];
+  groups: { name: string; keys: string[] }[];
 };
 
 export type RefTag = { name: string; count: number };

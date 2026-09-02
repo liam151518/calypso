@@ -88,6 +88,8 @@ from app.settings import (
     KNOWN_KEYS,
     delete_key,
     get_raw,
+    known_keys_grouped,
+    list_custom_keys,
     list_keys,
     save_key,
 )
@@ -199,6 +201,27 @@ def _known_env_var_or_404(env_var: str) -> str:
     if env_var not in allowed:
         abort(404)
     return env_var
+
+
+def _normalize_env_var(env_var: str) -> str:
+    """Validate and return the canonical env-var name, or raise ValueError.
+
+    - Trims whitespace.
+    - Matches KNOWN_KEYS case-insensitively (returns the canonical form).
+    - Otherwise accepts any valid identifier-shaped name so operators can
+      save custom keys (e.g. MY_CUSTOM_TOKEN) directly from the UI.
+    """
+    name = (env_var or "").strip()
+    if not name:
+        raise ValueError("env_var is required")
+    for entry in KNOWN_KEYS:
+        if str(entry["env_var"]).lower() == name.lower():
+            return str(entry["env_var"])
+    if not settings._is_valid_env_var_name(name):
+        raise ValueError(
+            f"invalid key name {name!r}: use A-Z, 0-9, underscore, no leading digit"
+        )
+    return name
 
 
 def _resolve_ref_path(filename: str | None) -> str | None:
@@ -874,7 +897,10 @@ def _register_routes(app: Flask) -> None:
 
     @app.route("/settings/<env_var>", methods=["POST"])
     def settings_save(env_var: str):
-        env_var = _known_env_var_or_404(env_var)
+        try:
+            env_var = _normalize_env_var(env_var)
+        except ValueError as exc:
+            return err(str(exc), code=400)
         value = (request.form.get("value") or "").strip()
         if not value:
             if wants_json():
@@ -895,7 +921,10 @@ def _register_routes(app: Flask) -> None:
 
     @app.route("/settings/<env_var>/delete", methods=["POST"])
     def settings_delete(env_var: str):
-        env_var = _known_env_var_or_404(env_var)
+        try:
+            env_var = _normalize_env_var(env_var)
+        except ValueError as exc:
+            return err(str(exc), code=400)
         try:
             delete_key(env_var)
         except ValueError as exc:
@@ -1086,16 +1115,43 @@ def _register_api_routes(app: Flask) -> None:
                 "env_var": k.env_var,
                 "service": k.service,
                 "placeholder": k.placeholder,
+                "group": k.group,
+                "required": k.required,
+                "docs_url": k.docs_url,
+                "description": k.description,
                 "is_set": k.is_set,
                 "masked": k.masked,
+                "is_custom": False,
             }
             for k in list_keys()
         ]
-        return ok({"keys": keys})
+        custom = [
+            {
+                "env_var": k.env_var,
+                "service": k.service,
+                "placeholder": k.placeholder,
+                "group": k.group,
+                "required": k.required,
+                "docs_url": k.docs_url,
+                "description": k.description,
+                "is_set": k.is_set,
+                "masked": k.masked,
+                "is_custom": True,
+            }
+            for k in list_custom_keys()
+        ]
+        groups = [
+            {"name": name, "keys": [k["env_var"] for k in entries]}
+            for name, entries in known_keys_grouped()
+        ]
+        return ok({"keys": keys, "custom": custom, "groups": groups})
 
     @app.route("/api/keys/<env_var>", methods=["POST"])
     def api_keys_set(env_var: str):
-        env_var = _known_env_var_or_404(env_var)
+        try:
+            env_var = _normalize_env_var(env_var)
+        except ValueError as exc:
+            return err(str(exc), code=400)
         body = request.get_json(silent=True) or {}
         value = (body.get("value") or request.form.get("value") or "").strip()
         if not value:
@@ -1108,12 +1164,37 @@ def _register_api_routes(app: Flask) -> None:
 
     @app.route("/api/keys/<env_var>", methods=["DELETE"])
     def api_keys_delete(env_var: str):
-        env_var = _known_env_var_or_404(env_var)
+        try:
+            env_var = _normalize_env_var(env_var)
+        except ValueError as exc:
+            return err(str(exc), code=400)
         try:
             delete_key(env_var)
         except ValueError as exc:
             return err(str(exc), code=400)
         return ok({"deleted": env_var})
+
+    @app.route("/api/keys/<env_var>/test", methods=["POST"])
+    def api_keys_test(env_var: str):
+        """Lightweight sanity check: the key must be present, non-empty, and
+        structurally valid (not all whitespace, not a placeholder, etc.).
+
+        Returns 200 if the key looks usable, 400 with a reason otherwise.
+        We deliberately don't call out to third-party APIs from the test
+        endpoint to keep credentials local.
+        """
+        try:
+            env_var = _normalize_env_var(env_var)
+        except ValueError as exc:
+            return err(str(exc), code=400)
+        raw = get_raw(env_var).strip()
+        if not raw:
+            return err(f"{env_var} is not set.", code=400)
+        if len(raw) < 4:
+            return err(f"{env_var} looks too short — double-check you pasted the full value.", code=400)
+        if raw.lower() in {"changeme", "todo", "your-key-here", "xxx", "xxxx"}:
+            return err(f"{env_var} still has the placeholder value.", code=400)
+        return ok({"env_var": env_var, "ok": True})
 
     @app.route("/api/refs")
     def api_refs():

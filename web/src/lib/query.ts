@@ -39,7 +39,8 @@ export function useHealth() {
 export function useKeys() {
   return useQuery({
     queryKey: queryKeys.keys,
-    queryFn: () => api.listKeys().then((r) => r.keys),
+    queryFn: () => api.listKeys(),
+    staleTime: 5_000,
   });
 }
 
@@ -57,6 +58,12 @@ export function useDeleteKey() {
   return useMutation({
     mutationFn: (env_var: string) => api.deleteKey(env_var),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.keys }),
+  });
+}
+
+export function useTestKey() {
+  return useMutation({
+    mutationFn: (env_var: string) => api.testKey(env_var),
   });
 }
 

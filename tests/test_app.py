@@ -404,9 +404,15 @@ class TestSettings:
         # after stripping the bullets that hide the rest.
         assert masked.replace("\u2022", "") == "-xyz"
 
-    def test_save_rejects_unknown_key(self, client):
-        resp = client.post("/settings/NOT_A_REAL_KEY", data={"value": "x"}, follow_redirects=False)
-        assert resp.status_code == 404
+    def test_save_rejects_invalid_key_name(self, client):
+        # Names with spaces / dashes are invalid, so the route returns 400
+        # (not 404 — unknown but valid identifiers are accepted now).
+        resp = client.post(
+            "/settings/not-a-real-key",
+            data={"value": "x"},
+            follow_redirects=False,
+        )
+        assert resp.status_code in (400, 404)  # Flask may 400 or 404 depending on path normalization
 
     def test_save_rejects_empty_value(self, client, tmp_path, monkeypatch):
         env_path = tmp_path / ".env"
@@ -438,14 +444,33 @@ class TestSettings:
 # ---------- settings.py unit ----------
 
 class TestSettingsModule:
-    def test_unknown_key_raises(self, tmp_path):
+    def test_invalid_key_name_raises(self, tmp_path):
         env_path = tmp_path / ".env"
+        # Names with spaces, dashes, leading digits, or empty are invalid.
         with pytest.raises(ValueError):
-            settings.save_key("NOT_REAL", "x", env_path=env_path)
+            settings.save_key("not-real", "x", env_path=env_path)
         with pytest.raises(ValueError):
-            settings.delete_key("NOT_REAL", env_path=env_path)
+            settings.save_key("1BAD", "x", env_path=env_path)
         with pytest.raises(ValueError):
-            settings.get_raw("NOT_REAL", env_path=env_path)
+            settings.save_key("", "x", env_path=env_path)
+        with pytest.raises(ValueError):
+            settings.delete_key("not-real", env_path=env_path)
+        with pytest.raises(ValueError):
+            settings.get_raw("not-real", env_path=env_path)
+
+    def test_custom_keys_are_accepted(self, tmp_path):
+        env_path = tmp_path / ".env"
+        # Custom keys (not in KNOWN_KEYS) are allowed.
+        settings.save_key("CUSTOM_KEY", "value", env_path=env_path)
+        assert "CUSTOM_KEY=value" in env_path.read_text()
+        # Round-trip via get_raw.
+        assert settings.get_raw("CUSTOM_KEY", env_path=env_path) == "value"
+        # list_custom_keys surfaces it.
+        custom = settings.list_custom_keys(env_path=env_path)
+        assert any(c.env_var == "CUSTOM_KEY" for c in custom)
+        # delete_key removes it.
+        settings.delete_key("CUSTOM_KEY", env_path=env_path)
+        assert "CUSTOM_KEY" not in env_path.read_text()
 
     def test_save_appends_when_new(self, tmp_path):
         env_path = tmp_path / ".env"

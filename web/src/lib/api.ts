@@ -40,7 +40,8 @@ export const api = {
   health: () => call<{ status: string; service: string; version: string }>("/api/health"),
 
   // Keys
-  listKeys: () => call<Ok<{ keys: import("./types").KeyStatus[] }>>("/api/keys"),
+  listKeys: () =>
+    call<Ok<import("./types").KeysResponse>>("/api/keys"),
   setKey: (env_var: string, value: string) =>
     call<Ok<{ env_var: string }>>(`/api/keys/${env_var}`, {
       method: "POST",
@@ -48,6 +49,10 @@ export const api = {
     }),
   deleteKey: (env_var: string) =>
     call<Ok<{ deleted: string }>>(`/api/keys/${env_var}`, { method: "DELETE" }),
+  testKey: (env_var: string) =>
+    call<Ok<{ env_var: string; ok: boolean }>>(`/api/keys/${env_var}/test`, {
+      method: "POST",
+    }),
 
   // Refs
   listRefs: () =>
