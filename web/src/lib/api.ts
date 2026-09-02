@@ -170,6 +170,93 @@ export const api = {
   listOutputs: () =>
     call<Ok<{ outputs: import("./types").OutputItem[] }>>("/api/outputs"),
 
+  // Refinement Studio
+  getOutput: (id: number) =>
+    call<Ok<{ output: import("./types").RefinementOutput }>>(`/api/outputs/${id}`),
+  listOutputVersions: (id: number) =>
+    call<Ok<{ versions: import("./types").OutputVersion[] }>>(`/api/outputs/${id}/versions`),
+  createOutputVersion: (
+    id: number,
+    body: {
+      layers_json?: unknown[];
+      filter_settings?: Record<string, unknown>;
+      file_path: string;
+      thumbnail_path?: string;
+      notes?: string;
+      cost_usd?: number;
+    },
+  ) =>
+    call<Ok<{ version: import("./types").OutputVersion }>>(
+      `/api/outputs/${id}/versions`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  promoteOutputVersion: (id: number, vid: number) =>
+    call<Ok<{ promoted: boolean; version: import("./types").OutputVersion }>>(
+      `/api/outputs/${id}/versions/${vid}/promote`,
+      { method: "POST" },
+    ),
+  deleteOutputVersion: (id: number, vid: number) =>
+    call<Ok<{ deleted: boolean }>>(
+      `/api/outputs/${id}/versions/${vid}`,
+      { method: "DELETE" },
+    ),
+  regenerateLayer: (
+    id: number,
+    layerIndex: number,
+    body: {
+      prompt?: string;
+      seed?: number;
+      model?: string;
+      text_content?: string;
+      notes?: string;
+    },
+  ) =>
+    call<Ok<import("./types").RegenLayerResult>>(
+      `/api/outputs/${id}/layers/${layerIndex}/regenerate`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  upscaleOutput: (
+    id: number,
+    body: { scale?: 2 | 4; model?: "realesrgan" | "fal"; face_enhance?: boolean; notes?: string },
+  ) =>
+    call<Ok<import("./types").UpscaleResponse>>(
+      `/api/outputs/${id}/upscale`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  // Skills (Phase I)
+  listSkills: () =>
+    call<Ok<{ skills: import("./types").Skill[] }>>("/api/skills"),
+  createSkill: (body: Partial<import("./types").Skill> & { slug: string }) =>
+    call<Ok<{ skill: import("./types").Skill }>>("/api/skills", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateSkill: (slug: string, body: Partial<import("./types").Skill>) =>
+    call<Ok<{ skill: import("./types").Skill }>>(`/api/skills/${slug}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteSkill: (slug: string) =>
+    call<Ok<{ deleted: string }>>(`/api/skills/${slug}`, { method: "DELETE" }),
+  toggleSkill: (slug: string, enabled: boolean) =>
+    call<Ok<{ slug: string; enabled: boolean }>>(`/api/skills/${slug}/toggle`, {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    }),
+  testSkill: (slug: string, sample: string) =>
+    call<Ok<import("./types").SkillTestResult>>(`/api/skills/${slug}/test`, {
+      method: "POST",
+      body: JSON.stringify({ sample }),
+    }),
+  listLLMProviders: () =>
+    call<
+      Ok<{
+        providers: import("./types").LLMProvider[];
+        active: string;
+      }>
+    >("/api/llm/providers"),
+
   // Models + cost estimates
   listModels: () =>
     call<

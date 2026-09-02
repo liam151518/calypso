@@ -384,3 +384,90 @@ export interface UserFilterPreset {
   name: string;
   settings: Record<string, number>;
 }
+
+// ----- Refinement Studio -----
+
+export interface RefinementOutput {
+  id: number;
+  brand_id: number | null;
+  product_id: number | null;
+  template_id: number | null;
+  type: string;
+  file_path: string;
+  aspect_ratio: string | null;
+  filter_applied: string | null;
+  status: string;
+  cost_usd: number;
+  created_at: number;
+  rel_url: string | null;
+  layers: TemplateLayer[];
+  filter: {
+    filter_name: string | null;
+    intensity: number;
+    [k: string]: unknown;
+  };
+}
+
+export interface OutputVersion {
+  id: number;
+  output_id: number;
+  layers_json: string;       // raw JSON; parse with JSON.parse
+  filter_settings: string;   // raw JSON
+  file_path: string;
+  thumbnail_path: string | null;
+  rel_url?: string | null;
+  notes: string;
+  cost_usd: number;
+  created_at: number;
+}
+
+export interface RegenLayerResult {
+  version: OutputVersion;
+  layer: TemplateLayer;
+  render: {
+    output_id: number;
+    file_path: string;
+    cost_usd: number;
+    cached_background: boolean;
+  };
+}
+
+export interface UpscaleResponse {
+  version: OutputVersion;
+  upscale: {
+    file_path: string;
+    cost_usd: number;
+    scale: number;
+    model_used: string;
+    width: number;
+    height: number;
+    face_enhance: boolean;
+    elapsed_seconds: number;
+    warnings: string[];
+  };
+}
+
+export interface Skill {
+  slug: string;
+  name: string;
+  enabled: boolean;
+  builtin: boolean;
+  description: string;
+  tags: string[];
+  post_process_re: string | null;
+  content_md: string;
+}
+
+export interface SkillTestResult {
+  skill: Skill;
+  injected_system: string;
+  post_processed: string;
+}
+
+export interface LLMProvider {
+  name: string;
+  env_var: string;
+  docs_url: string;
+  default_model: string;
+  is_set: boolean;
+}

@@ -67,6 +67,162 @@ export function useTestKey() {
   });
 }
 
+// ---- Refinement Studio hooks -------------------------------------------
+
+export const refinementKeys = {
+  output: (id: number) => ["refinement", "output", id] as const,
+  versions: (id: number) => ["refinement", "versions", id] as const,
+};
+
+export function useRefinementOutput(id: number) {
+  return useQuery({
+    queryKey: refinementKeys.output(id),
+    queryFn: () => api.getOutput(id),
+    enabled: Number.isFinite(id) && id > 0,
+  });
+}
+
+export function useOutputVersions(id: number) {
+  return useQuery({
+    queryKey: refinementKeys.versions(id),
+    queryFn: () => api.listOutputVersions(id),
+    enabled: Number.isFinite(id) && id > 0,
+  });
+}
+
+export function useRegenerateLayer(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      layerIndex,
+      payload,
+    }: {
+      layerIndex: number;
+      payload: {
+        prompt?: string;
+        seed?: number;
+        model?: string;
+        text_content?: string;
+        notes?: string;
+      };
+    }) => api.regenerateLayer(id, layerIndex, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: refinementKeys.output(id) });
+      qc.invalidateQueries({ queryKey: refinementKeys.versions(id) });
+    },
+  });
+}
+
+export function useUpscaleOutput(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      scale?: 2 | 4;
+      model?: "realesrgan" | "fal";
+      face_enhance?: boolean;
+      notes?: string;
+    }) => api.upscaleOutput(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: refinementKeys.output(id) });
+      qc.invalidateQueries({ queryKey: refinementKeys.versions(id) });
+    },
+  });
+}
+
+export function usePromoteVersion(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (versionId: number) =>
+      api.promoteOutputVersion(id, versionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: refinementKeys.output(id) });
+    },
+  });
+}
+
+export function useDeleteVersion(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (versionId: number) =>
+      api.deleteOutputVersion(id, versionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: refinementKeys.versions(id) });
+    },
+  });
+}
+
+// ---- Skills (Phase I) ----------------------------------------------------
+
+export const skillsKeys = {
+  all: ["skills"] as const,
+  list: () => [...skillsKeys.all, "list"] as const,
+};
+
+export function useSkills() {
+  return useQuery({
+    queryKey: skillsKeys.list(),
+    queryFn: () => api.listSkills(),
+  });
+}
+
+export function useToggleSkill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ slug, enabled }: { slug: string; enabled: boolean }) =>
+      api.toggleSkill(slug, enabled),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: skillsKeys.list() });
+    },
+  });
+}
+
+export function useUpdateSkill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ slug, body }: { slug: string; body: Partial<import("./types").Skill> }) =>
+      api.updateSkill(slug, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: skillsKeys.list() });
+    },
+  });
+}
+
+export function useCreateSkill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<import("./types").Skill> & { slug: string }) =>
+      api.createSkill(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: skillsKeys.list() });
+    },
+  });
+}
+
+export function useDeleteSkill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (slug: string) => api.deleteSkill(slug),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: skillsKeys.list() });
+    },
+  });
+}
+
+export function useTestSkill() {
+  return useMutation({
+    mutationFn: ({ slug, sample }: { slug: string; sample: string }) =>
+      api.testSkill(slug, sample),
+  });
+}
+
+export function useLLMProviders() {
+  return useQuery({
+    queryKey: ["llm", "providers"] as const,
+    queryFn: () => api.listLLMProviders(),
+    staleTime: 60_000,
+  });
+}
+
 export type RefsData = { refs: RefItem[]; tags: RefTag[] };
 
 export function useRefs() {

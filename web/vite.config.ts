@@ -27,5 +27,31 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     target: "es2022",
+    rollupOptions: {
+      output: {
+        // Split heavy vendors into dedicated chunks so the initial bundle
+        // stays under 500 KB. Konva is ~250 KB on its own, so we isolate it.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("konva") || id.includes("react-konva") || id.includes("use-gesture")) {
+            return "vendor-konva";
+          }
+          if (id.includes("@tanstack")) {
+            return "vendor-react-query";
+          }
+          if (id.includes("framer-motion") || id.includes("motion")) {
+            return "vendor-motion";
+          }
+          if (id.includes("react-dnd") || id.includes("dnd-core")) {
+            return "vendor-dnd";
+          }
+          if (id.includes("react") || id.includes("scheduler")) {
+            return "vendor-react";
+          }
+          return undefined;
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
   },
 });

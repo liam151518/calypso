@@ -362,5 +362,19 @@ export function buildQueryMock() {
     useFilters: () => ({ data: { presets: MOCK_FILTERS, user: [] }, isLoading: false }),
     useRender: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
     useRenderBatch: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+    // ----- Phase I: refinement studio + skills -----
+    useRefinementOutput: () => ({ data: null, isLoading: false }),
+    useOutputVersions: () => ({ data: { versions: [] }, isLoading: false }),
+    useRegenerateLayer: () => ({ mutate: vi.fn(), isPending: false }),
+    useUpscaleOutput: () => ({ mutate: vi.fn(), isPending: false }),
+    usePromoteVersion: () => ({ mutate: vi.fn(), isPending: false }),
+    useDeleteVersion: () => ({ mutate: vi.fn(), isPending: false }),
+    useSkills: () => ({ data: { skills: [] }, isLoading: false }),
+    useToggleSkill: () => ({ mutate: vi.fn(), isPending: false }),
+    useUpdateSkill: () => ({ mutate: vi.fn(), isPending: false }),
+    useCreateSkill: () => ({ mutate: vi.fn(), isPending: false }),
+    useDeleteSkill: () => ({ mutate: vi.fn(), isPending: false }),
+    useTestSkill: () => ({ mutate: vi.fn(), data: null, isPending: false }),
+    useLLMProviders: () => ({ data: { providers: [], active: "openai" }, isLoading: false }),
   };
 }

@@ -17,7 +17,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSkeleton } from "@/components/layout/LoadingSkeleton";
 import {
-  useDeleteKey,
   useKeys,
   useSetKey,
   useTestKey,
@@ -27,7 +26,6 @@ import { toast as sonnerToast } from "sonner";
 export function SettingsPage() {
   const keys = useKeys();
   const set = useSetKey();
-  const del = useDeleteKey();
   const test = useTestKey();
 
   const grouped = useMemo(() => {
@@ -77,7 +75,7 @@ export function SettingsPage() {
 
   function handleTest(env_var: string) {
     test.mutate(env_var, {
-      onSuccess: (res) => sonnerToast.success(`${env_var} looks good.`),
+      onSuccess: () => sonnerToast.success(`${env_var} looks good.`),
       onError: (err) =>
         sonnerToast.error(
           err instanceof Error ? err.message : "Test failed",

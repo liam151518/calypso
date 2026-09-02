@@ -12,13 +12,14 @@ import { BatchBlock } from "@/components/domain/BatchBlock";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { LoadingSkeleton } from "@/components/layout/LoadingSkeleton";
-import { useGenerate, useJobs, useBrands } from "@/lib/query";
+import { useGenerate, useJobs, useBrands, useSkills } from "@/lib/query";
 import type { Job } from "@/lib/types";
 
 export function GeneratePage() {
   const brands = useBrands();
   const generate = useGenerate();
   const jobs = useJobs();
+  const skills = useSkills();
 
   const [prompt, setPrompt] = useState("");
   const [draftId, setDraftId] = useState<number | null>(null);
@@ -62,6 +63,8 @@ export function GeneratePage() {
         title="Compose a generation"
         description="Pick a brand, choose references, draft a prompt. Run a single shot or a batch."
       />
+
+      <SkillsChip skills={skills.data?.skills ?? []} />
 
       <BrandBanner />
 
@@ -141,5 +144,30 @@ export function GeneratePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SkillsChip({ skills }: { skills: import("@/lib/types").Skill[] }) {
+  const enabled = skills.filter((s) => s.enabled);
+  if (enabled.length === 0) {
+    return (
+      <a
+        href="/skills"
+        className="inline-flex w-fit items-center gap-2 rounded-full border border-dashed bg-muted/40 px-3 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted"
+      >
+        <Sparkles className="h-3 w-3" />
+        No skills enabled
+      </a>
+    );
+  }
+  return (
+    <a
+      href="/skills"
+      className="inline-flex w-fit items-center gap-2 rounded-full border bg-primary/5 px-3 py-1 text-[11px] transition-colors hover:bg-primary/10"
+    >
+      <Sparkles className="h-3 w-3 text-primary" />
+      <span className="font-medium">{enabled.length} skill{enabled.length === 1 ? "" : "s"} active</span>
+      <span className="text-muted-foreground">· {enabled.map((s) => s.slug).join(", ")}</span>
+    </a>
   );
 }

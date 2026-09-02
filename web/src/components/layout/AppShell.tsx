@@ -1,14 +1,16 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import {
+  Boxes,
+  Calendar,
   Clapperboard,
-  Cog,
   ImagePlus,
   Layers,
   Library,
-  Megaphone,
+  Package,
   Palette,
   Plug,
   Search,
+  Settings2,
   Sparkles,
   Wand2,
   Workflow,
@@ -22,20 +24,62 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useHealth } from "@/lib/query";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { to: "/generate", label: "Generate", icon: Sparkles, hint: "G" },
-  { to: "/image", label: "Image", icon: ImagePlus, hint: "I" },
-  { to: "/outputs", label: "Outputs", icon: Clapperboard, hint: "O" },
-  { to: "/references", label: "References", icon: Library, hint: "R" },
-  { to: "/brand", label: "Brand", icon: Palette, hint: "B" },
-  { to: "/studio", label: "Studio", icon: Wand2, hint: "S" },
-  { to: "/studio-pro", label: "Studio Pro", icon: Wand2, hint: "P" },
-  { to: "/presets", label: "Presets", icon: Layers, hint: "X" },
-  { to: "/automation", label: "Automation", icon: Zap, hint: "A" },
-  { to: "/pipelines", label: "Pipelines", icon: Workflow, hint: "W" },
-  { to: "/extensions", label: "Extensions", icon: Plug, hint: "E" },
-  { to: "/marketing", label: "Marketing", icon: Megaphone, hint: "M" },
-  { to: "/settings", label: "Settings", icon: Cog, hint: "t" },
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof Sparkles;
+  hint: string;
+};
+
+type NavSection = {
+  title: string;
+  items: NavItem[];
+};
+
+// Logical groupings of the surface area. The labels reflect how an
+// operator thinks about the product, not how the codebase is split.
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: "Create",
+    items: [
+      { to: "/generate", label: "Generate", icon: Sparkles, hint: "G" },
+      { to: "/image", label: "Image", icon: ImagePlus, hint: "I" },
+      { to: "/studio", label: "Studio", icon: Wand2, hint: "S" },
+      { to: "/studio-pro", label: "Studio Pro", icon: Boxes, hint: "P" },
+      { to: "/pipelines", label: "Pipelines", icon: Workflow, hint: "W" },
+    ],
+  },
+  {
+    title: "Library",
+    items: [
+      { to: "/outputs", label: "Outputs", icon: Clapperboard, hint: "O" },
+      { to: "/references", label: "References", icon: Library, hint: "R" },
+      { to: "/templates", label: "Templates", icon: Layers, hint: "T" },
+      { to: "/products", label: "Products", icon: Package, hint: "D" },
+      { to: "/brand", label: "Brand", icon: Palette, hint: "B" },
+    ],
+  },
+  {
+    title: "Workflow",
+    items: [
+      { to: "/presets", label: "Presets", icon: Layers, hint: "X" },
+      { to: "/automation", label: "Automation", icon: Zap, hint: "A" },
+      { to: "/marketing", label: "Marketing", icon: Calendar, hint: "M" },
+    ],
+  },
+  {
+    title: "Extend",
+    items: [
+      { to: "/skills", label: "Skills", icon: Sparkles, hint: "K" },
+      { to: "/extensions", label: "Extensions", icon: Plug, hint: "E" },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { to: "/settings", label: "Settings", icon: Settings2, hint: "S" },
+    ],
+  },
 ];
 
 export function AppShell() {
@@ -93,37 +137,58 @@ function Sidebar() {
           </span>
         </div>
       </div>
-      <nav className="flex-1 px-2 py-3" aria-label="Primary">
-        <ul className="flex flex-col gap-0.5">
-          {NAV.map((item) => (
-            <li key={item.to}>
-              <NavLink
-                to={item.to}
-                data-testid={`nav-${item.label.toLowerCase()}`}
-                className={({ isActive }) =>
-                  cn(
-                    "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
-                    isActive && "text-foreground",
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary transition-opacity",
-                        isActive ? "opacity-100" : "opacity-0",
+      <nav
+        className="flex-1 overflow-y-auto px-2 py-3"
+        aria-label="Primary"
+      >
+        <ul className="flex flex-col gap-4">
+          {NAV_SECTIONS.map((section) => (
+            <li key={section.title}>
+              <div className="flex items-center gap-2 px-3 pb-1.5 pt-1">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  {section.title}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="h-px flex-1 bg-border/60"
+                />
+                <span className="text-[10px] font-mono text-muted-foreground/70">
+                  {section.items.length}
+                </span>
+              </div>
+              <ul className="flex flex-col gap-0.5">
+                {section.items.map((item) => (
+                  <li key={item.to}>
+                    <NavLink
+                      to={item.to}
+                      data-testid={`nav-${item.label.toLowerCase()}`}
+                      className={({ isActive }) =>
+                        cn(
+                          "group relative flex items-center gap-3 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                          isActive && "bg-accent text-foreground",
+                        )
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              "absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary transition-opacity",
+                              isActive ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          <item.icon className="h-4 w-4" />
+                          <span className="flex-1">{item.label}</span>
+                          <kbd className="hidden rounded border border-border bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground group-hover:inline">
+                            {item.hint}
+                          </kbd>
+                        </>
                       )}
-                    />
-                    <item.icon className="h-4 w-4" />
-                    <span className="flex-1">{item.label}</span>
-                    <kbd className="hidden rounded border border-border bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground group-hover:inline">
-                      {item.hint}
-                    </kbd>
-                  </>
-                )}
-              </NavLink>
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
             </li>
           ))}
         </ul>

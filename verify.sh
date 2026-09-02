@@ -426,9 +426,27 @@ fi
 # New docs.
 for d in docs/install.md docs/quickstart.md docs/templates.md \
          docs/studio.md docs/video_pipeline.md docs/omni_integration.md \
-         docs/api.md docs/RELEASE.md; do
+         docs/api.md docs/RELEASE.md \
+         docs/USER_GUIDE.md docs/SKILLS.md docs/REFINEMENT_STUDIO.md; do
   if [[ -f "$d" ]]; then pass "doc: $d"
   else info "doc not yet written: $d"
+  fi
+done
+
+# Phase I: built-in skills shipped.
+for d in app/skills/builtins/ugc_video.md \
+         app/skills/builtins/image_ad.md \
+         app/skills/builtins/prompt_enhancement.md \
+         app/skills/builtins/caption_optimizer.md; do
+  if [[ -f "$d" ]]; then pass "skill: $d"
+  else fail "missing built-in skill: $d"
+  fi
+done
+
+# Phase I: LLM backend + skills runtime present.
+for f in app/llm.py app/skills.py app/skills_store.py; do
+  if [[ -f "$f" ]]; then pass "module: $f"
+  else fail "missing module: $f"
   fi
 done
 
