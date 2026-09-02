@@ -498,13 +498,22 @@ def render(
     # Insert outputs row.
     now = time.time()
     conn = app_db.get_conn()
+    layers_json = json.dumps(t_substituted.get("layers") or [])
+    filter_settings = json.dumps({
+        "filter_name": filter_name,
+        "intensity": intensity,
+    })
     conn.execute(
         """
         INSERT INTO outputs(
             brand_id, product_id, template_id, type, file_path,
             aspect_ratio, file_size_bytes, filter_applied, status,
-            cost_usd, created_at
-        ) VALUES (?, ?, ?, 'image', ?, ?, ?, ?, 'draft', ?, ?)
+            cost_usd, created_at,
+            layers_json, filter_settings
+        ) VALUES (
+            ?, ?, ?, 'image', ?, ?, ?, ?, 'draft', ?, ?,
+            ?, ?
+        )
         """,
         (
             brand_id or (product or {}).get("brand_id"),
@@ -516,6 +525,8 @@ def render(
             filter_name,
             total_cost,
             now,
+            layers_json,
+            filter_settings,
         ),
     )
     elapsed = round(time.monotonic() - started, 3)

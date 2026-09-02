@@ -520,6 +520,40 @@ def init_db(path: Path | None = None) -> Path:
             "CREATE INDEX IF NOT EXISTS idx_studio_suggestions_run "
             "ON studio_suggestions(run_id)"
         )
+        # Phase I: Refinement Studio — persist layers + filter settings on outputs.
+        _out_cols = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(outputs)").fetchall()
+        }
+        if "layers_json" not in _out_cols:
+            conn.execute(
+                "ALTER TABLE outputs ADD COLUMN layers_json TEXT NOT NULL DEFAULT '[]'"
+            )
+        if "filter_settings" not in _out_cols:
+            conn.execute(
+                "ALTER TABLE outputs ADD COLUMN filter_settings TEXT NOT NULL DEFAULT '{}'"
+            )
+        # Phase I: output_versions table for Refinement Studio history.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS output_versions (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                output_id       INTEGER NOT NULL,
+                layers_json     TEXT NOT NULL DEFAULT '[]',
+                filter_settings TEXT NOT NULL DEFAULT '{}',
+                file_path       TEXT NOT NULL,
+                thumbnail_path  TEXT,
+                notes           TEXT,
+                cost_usd        REAL NOT NULL DEFAULT 0,
+                created_at      REAL NOT NULL,
+                FOREIGN KEY (output_id) REFERENCES outputs(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_output_versions_output "
+            "ON output_versions(output_id, created_at DESC)"
+        )
         # Captions table — cache_key + expires_at were added later.
         _cap_cols = {
             row[1]
@@ -541,6 +575,28 @@ def init_db(path: Path | None = None) -> Path:
             )
         except Exception:  # noqa: BLE001
             pass
+        # Phase I — Skills system: user_skills table for DB-backed toggles.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_skills (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug            TEXT NOT NULL UNIQUE,
+                name            TEXT NOT NULL DEFAULT '',
+                enabled         INTEGER NOT NULL DEFAULT 1,
+                content_md      TEXT NOT NULL DEFAULT '',
+                post_process_re TEXT,
+                description     TEXT NOT NULL DEFAULT '',
+                tags_json       TEXT NOT NULL DEFAULT '[]',
+                builtin         INTEGER NOT NULL DEFAULT 0,
+                created_at      REAL NOT NULL,
+                updated_at      REAL NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_user_skills_slug "
+            "ON user_skills(slug)"
+        )
         conn.commit()
     finally:
         conn.close()
